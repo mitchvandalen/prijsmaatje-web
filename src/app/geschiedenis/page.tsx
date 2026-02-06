@@ -36,8 +36,8 @@ function itemsToText(items: any[]): string {
  * - voorkomt CORS preflight + Failed to fetch
  */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: HeadersInit = {
-    ...(init?.headers ?? {}),
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> ?? {}),
   };
 
   if (init?.body) {
