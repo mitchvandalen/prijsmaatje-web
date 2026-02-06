@@ -1,0 +1,492 @@
+@import "tailwindcss";
+
+/* =========================================================
+   PrijsMaatje – Streamlit-like basis theme
+   ========================================================= */
+
+/* ---------- CSS Variables ---------- */
+:root {
+  --pm-bg: #eef4ff;
+  --pm-bg-soft: #e4f0ff;
+  --pm-text: #111827;
+  --pm-sub: #4b5563;
+  --pm-border: rgba(148, 163, 184, 0.45);
+  --pm-blue: #2563eb;
+  --pm-indigo: #4f46e5;
+  --pm-green: #22c55e;
+  --pm-sep: #efe7d5;
+}
+
+/* ---------- Global background ---------- */
+html,
+body {
+  min-height: 100%;
+  background: linear-gradient(
+    180deg,
+    var(--pm-bg) 0%,
+    var(--pm-bg-soft) 100%
+  );
+  color: var(--pm-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* =========================================================
+   🔽 FORM ELEMENTS – INPUTS & TEXTAREAS
+   ========================================================= */
+
+input,
+textarea,
+select {
+  width: 100%;
+  background-color: #ffffff;                  /* wit typevlak */
+  border: 1px solid rgba(148, 163, 184, 0.6); /* slate-300 */
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--pm-text);
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+
+/* Placeholder */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* Focus state */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--pm-blue);
+  box-shadow: 0 0 0 1px var(--pm-blue);
+}
+
+/* Disabled */
+input:disabled,
+textarea:disabled {
+  background: #f1f5f9;
+  color: rgba(0, 0, 0, 0.45);
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   ✅ EXTRA HELPERS VOOR VERGELIJKEN-PAGINA
+   (zet deze classes op je elementen in de pagina)
+   ========================================================= */
+
+/* Suggestie-input extra breed (alleen nodig als er een wrapper max-width heeft) */
+.pm-inputWide {
+  width: 100%;
+  min-width: 320px;
+}
+
+/* Boodschappenlijst typeblok groter */
+.pm-textareaBig {
+  width: 100%;
+  min-height: 260px; /* groter in zijn geheel */
+  resize: vertical;
+}
+
+/*
+  3-koloms layout voor:
+  - links: suggesties/input (breder)
+  - midden: geselecteerd (smaller)
+  - rechts: boodschappenlijst (breder)
+*/
+.pm-compareGrid {
+  display: grid;
+  grid-template-columns: minmax(340px, 2.2fr) minmax(220px, 1.1fr) minmax(360px, 2.7fr);
+  gap: 22px;
+  align-items: start;
+}
+
+/* Op kleinere schermen stapelen */
+@media (max-width: 980px) {
+  .pm-compareGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   App shell
+   ========================================================= */
+
+.pm-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.pm-sidebar {
+  width: 260px;
+  background: #e0e7ff;
+  border-right: 1px solid var(--pm-border);
+  padding: 16px 14px;
+}
+
+.pm-brand {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.pm-sideSub {
+  font-size: 0.85rem;
+  color: var(--pm-sub);
+}
+
+/* Navigation */
+.pm-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.pm-navItem {
+  padding: 8px 12px;
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--pm-text);
+  font-size: 0.95rem;
+}
+
+.pm-navItem:hover {
+  background: rgba(79, 70, 229, 0.12);
+}
+
+.pm-navItem.is-active {
+  background: rgba(79, 70, 229, 0.18);
+  font-weight: 600;
+}
+
+/* ---------- Main ---------- */
+.pm-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Topbar ---------- */
+.pm-topbar {
+  height: 56px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 20px;
+}
+
+/* =========================================================
+   CONTENT – Streamlit proportions
+   ========================================================= */
+
+.pm-page {
+  width: 100%;
+}
+
+.pm-content {
+  /* WAS: max-width: 820px;  -> maakte alles vrij smal */
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 22px 60px;
+}
+
+/* ---------- Page header ---------- */
+.pm-header {
+  margin-bottom: 14px;
+}
+
+.pm-title {
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.pm-subtitle {
+  font-size: 14px;
+  color: rgba(0,0,0,0.55);
+  margin-top: 6px;
+}
+
+/* =========================================================
+   Typography – markdown gevoel
+   ========================================================= */
+
+.pm-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(0,0,0,0.80);
+}
+
+.pm-bullets {
+  margin: 10px 0 10px 20px;
+  padding: 0;
+  list-style: disc;
+  font-size: 14px;
+  color: rgba(0,0,0,0.75);
+}
+
+.pm-bullets--nested {
+  margin-top: 8px;
+}
+
+.pm-caption {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(0,0,0,0.55);
+}
+
+.pm-hint {
+  margin-top: 10px;
+  font-size: 14px;
+  color: rgba(0,0,0,0.70);
+}
+
+/* Headings */
+.pm-h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.pm-h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+}
+
+/* =========================================================
+   CTA – grote Streamlit pill
+   ========================================================= */
+
+.pm-ctaWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.pm-ctaBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(520px, 100%);
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #2f6fed;
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 10px 22px rgba(47,111,237,0.22);
+}
+
+.pm-ctaBtn:hover {
+  filter: brightness(0.97);
+}
+
+/* =========================================================
+   Separator – beige balk
+   ========================================================= */
+
+.pm-sep {
+  height: 34px;
+  background: var(--pm-sep);
+  border-radius: 999px;
+  margin: 18px 0;
+}
+
+/* =========================================================
+   Cards – zachter dan dashboard
+   ========================================================= */
+
+.pm-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+}
+
+/* =========================================================
+   Two column blocks
+   ========================================================= */
+
+.pm-twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+/* =========================================================
+   Premium status blocks
+   ========================================================= */
+
+.pm-status {
+  background: #f8fafc;
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 14px;
+}
+
+.pm-status--active {
+  background: #ecfdf5;
+  border-color: var(--pm-green);
+}
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+
+.pm-btn {
+  width: 100%;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(90deg, var(--pm-blue), var(--pm-indigo));
+}
+
+/* =========================================================
+   Geschiedenis – expanders & code blocks
+   ========================================================= */
+
+details {
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+details + details {
+  margin-top: 12px;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+summary::marker {
+  color: var(--pm-indigo);
+}
+
+.pm-code {
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  margin-top: 8px;
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+
+@media (max-width: 820px) {
+  .pm-twoCol {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .pm-sidebar {
+    display: none;
+  }
+
+  .pm-content {
+    max-width: 100%;
+  }
+}
+
+/* =========================================================
+   🔐 Auth pages (login / register) – additions
+   =========================================================
+   Opmerking: je hebt al pm-card, pm-title, pm-subtitle, input styling en pm-btn.
+   Dit blok voegt alleen centering + form spacing + link/button helpers toe.
+   ========================================================= */
+
+.pm-authPage {
+  max-width: 520px;
+  margin: 18px auto 0;
+  text-align: center;
+}
+
+/* Kleinere variant van de grote paginatitel voor auth */
+.pm-authTitle {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.pm-authSubtitle {
+  font-size: 14px;
+  color: rgba(0,0,0,0.60);
+  margin-bottom: 18px;
+}
+
+.pm-authCard {
+  text-align: left; /* in de kaart willen we labels links */
+  padding: 22px;    /* iets ruimer dan de standaard pm-card */
+}
+
+.pm-authCard h2 {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+/* Form layout */
+.pm-authForm {
+  display: grid;
+  gap: 14px;
+}
+
+.pm-authForm label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: rgba(0,0,0,0.80);
+}
+
+/* Checkbox rij */
+.pm-authCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(0,0,0,0.75);
+}
+
+.pm-authCheckbox input[type="checkbox"] {
+  width: auto; /* override: input { width:100% } */
+}
+
+/* Error */
+.pm-authError {
+  color: #dc2626; /* red-600 */
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+/* Footer links */
+.pm-authFooter {
+  margin-top: 14px;
+  font-size: 14px;
+  text-align: center;
+  color: rgba(0,0,0,0.70);
+}
+
+.pm-authFooter a {
+  color: var(--pm-indigo);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.pm-authFooter a:hover {
+  text-decoration: underline;
+}
+
