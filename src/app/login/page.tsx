@@ -68,7 +68,7 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      await login(email, password);
+      await login(email, password, undefined);
 
       const next = safeNext();
       router.replace(next || "/");
