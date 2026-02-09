@@ -55,8 +55,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
  * ✅ FIX: Content-Type alleen bij requests met body.
  */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: HeadersInit = {
-    ...(init?.headers || {}),
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> || {}),
   };
 
   if (init?.body) {
