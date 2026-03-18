@@ -3,24 +3,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function GeschiedenisInner() {
-  const router = useRouter();
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.prijsmaatje.nl";
 
 // ---------- helpers ----------
 function getUserId() {
+  if (typeof window === "undefined") {
+    return "server";
+  }
+
   const key = "pm_user_id";
   let id = localStorage.getItem(key);
+
   if (!id) {
     id = crypto.randomUUID();
     localStorage.setItem(key, id);
   }
+
   return id;
 }
 
 function itemsToText(items: any[]): string {
   const lines: string[] = [];
+
   for (const it of items ?? []) {
     if (it && typeof it === "object") {
       const line = String(it.label || it.query || "").trim();
@@ -30,17 +34,13 @@ function itemsToText(items: any[]): string {
       if (line) lines.push(line);
     }
   }
+
   return lines.join("\n");
 }
 
-/**
- * ✅ GEFIXTE api helper
- * - Content-Type alleen bij requests met body
- * - voorkomt CORS preflight + Failed to fetch
- */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
-    ...(init?.headers as Record<string, string> ?? {}),
+    ...((init?.headers as Record<string, string>) ?? {}),
   };
 
   if (init?.body) {
@@ -80,24 +80,24 @@ type HistoryItem = {
   };
 };
 
-export default function GeschiedenisPage() {
+export default function GeschiedenisInner() {
   const router = useRouter();
   const userId = useMemo(() => getUserId(), []);
 
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState("");
 
   const [fixedLists, setFixedLists] = useState<FixedList[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  // UI state
   const [renameFixed, setRenameFixed] = useState<Record<string, string>>({});
   const [renameHist, setRenameHist] = useState<Record<string, string>>({});
   const [saveAsFixedName, setSaveAsFixedName] = useState<Record<string, string>>({});
 
-  // 🔐 Premium status uit backend
   useEffect(() => {
+    if (!userId || userId === "server") return;
+
     api<{ user_id: string; is_premium: boolean }>(
       `/premium/status?user_id=${encodeURIComponent(userId)}`
     )
@@ -106,8 +106,11 @@ export default function GeschiedenisPage() {
   }, [userId]);
 
   async function loadAll() {
+    if (!userId || userId === "server") return;
+
     setLoading(true);
     setError("");
+
     try {
       const listsResp = await api<{ lists: FixedList[] }>(
         `/premium/lists?user_id=${encodeURIComponent(userId)}`
@@ -120,7 +123,9 @@ export default function GeschiedenisPage() {
       setHistory(histResp.history ?? []);
 
       const rf: Record<string, string> = {};
-      for (const l of listsResp.lists ?? []) rf[String(l.id)] = l.name ?? "Zonder naam";
+      for (const l of listsResp.lists ?? []) {
+        rf[String(l.id)] = l.name ?? "Zonder naam";
+      }
       setRenameFixed(rf);
 
       const rh: Record<string, string> = {};
@@ -141,7 +146,6 @@ export default function GeschiedenisPage() {
   useEffect(() => {
     if (!isPremium) return;
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPremium]);
 
   function useItems(items: any[]) {
@@ -151,13 +155,17 @@ export default function GeschiedenisPage() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    localStorage.setItem("pm_manual_items_list", JSON.stringify(list));
-    localStorage.setItem("pm_loaded_from_history", "true");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pm_manual_items_list", JSON.stringify(list));
+      localStorage.setItem("pm_loaded_from_history", "true");
+    }
+
     router.push("/vergelijken");
   }
 
-  // ---------- actions ----------
   async function renameFixedList(listId: string) {
+    if (!userId || userId === "server") return;
+
     const name = (renameFixed[listId] ?? "").trim() || "Zonder naam";
     await api(`/premium/lists/${encodeURIComponent(listId)}/rename`, {
       method: "POST",
@@ -167,13 +175,20 @@ export default function GeschiedenisPage() {
   }
 
   async function deleteFixedList(listId: string) {
-    await api(`/premium/lists/${encodeURIComponent(listId)}?user_id=${encodeURIComponent(userId)}`, {
-      method: "DELETE",
-    });
+    if (!userId || userId === "server") return;
+
+    await api(
+      `/premium/lists/${encodeURIComponent(listId)}?user_id=${encodeURIComponent(userId)}`,
+      {
+        method: "DELETE",
+      }
+    );
     loadAll();
   }
 
   async function renameHistoryItem(histId: string) {
+    if (!userId || userId === "server") return;
+
     const name = (renameHist[histId] ?? "").trim() || "Zonder naam";
     await api(`/premium/history/${encodeURIComponent(histId)}/name`, {
       method: "PATCH",
@@ -183,6 +198,8 @@ export default function GeschiedenisPage() {
   }
 
   async function saveHistoryAsFixed(histId: string, items: any[]) {
+    if (!userId || userId === "server") return;
+
     const name = (saveAsFixedName[histId] ?? "").trim() || "Vaste lijst";
     await api(`/premium/save_list`, {
       method: "POST",
@@ -192,9 +209,14 @@ export default function GeschiedenisPage() {
   }
 
   async function deleteHistoryItem(histId: string) {
-    await api(`/premium/history/${encodeURIComponent(histId)}?user_id=${encodeURIComponent(userId)}`, {
-      method: "DELETE",
-    });
+    if (!userId || userId === "server") return;
+
+    await api(
+      `/premium/history/${encodeURIComponent(histId)}?user_id=${encodeURIComponent(userId)}`,
+      {
+        method: "DELETE",
+      }
+    );
     loadAll();
   }
 
@@ -227,7 +249,6 @@ export default function GeschiedenisPage() {
 
             {!loading && !error && (
               <>
-                {/* Vaste lijsten */}
                 <section className="pm-card mb-6">
                   <h2 className="pm-h2">⭐ Vaste lijsten</h2>
 
@@ -282,7 +303,6 @@ export default function GeschiedenisPage() {
                   )}
                 </section>
 
-                {/* Geschiedenis */}
                 <section className="pm-card">
                   <h2 className="pm-h2">🧾 Geschiedenis</h2>
 
@@ -340,16 +360,10 @@ export default function GeschiedenisPage() {
                           </div>
 
                           <div className="pm-twoCol mt-3">
-                            <button
-                              className="pm-btn"
-                              onClick={() => saveHistoryAsFixed(hid, items)}
-                            >
+                            <button className="pm-btn" onClick={() => saveHistoryAsFixed(hid, items)}>
                               ⭐ Opslaan als vaste lijst
                             </button>
-                            <button
-                              className="pm-btn"
-                              onClick={() => deleteHistoryItem(hid)}
-                            >
+                            <button className="pm-btn" onClick={() => deleteHistoryItem(hid)}>
                               🗑️ Verwijder uit geschiedenis
                             </button>
                           </div>
