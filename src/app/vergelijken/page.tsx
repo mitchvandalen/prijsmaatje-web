@@ -49,7 +49,7 @@ type CompareItem = {
   image_url?: string | null;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.prijsmaatje.nl";
 
 /**
  * ✅ FIX: Content-Type alleen bij requests met body.
