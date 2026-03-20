@@ -17,8 +17,15 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            nvm use 20
+
             cd /opt/prijsmaatje-web
             git pull origin main
             npm install
             npm run build
-            pm2 restart prijsmaatje-web
+
+            pm2 restart prijsmaatje-web || pm2 start npm --name prijsmaatje-web -- start
+            pm2 save
