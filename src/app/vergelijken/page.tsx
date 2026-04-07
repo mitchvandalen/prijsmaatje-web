@@ -50,7 +50,7 @@ type CompareItem = {
 };
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://emea01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fapi.prijsmaatje.nl%2F&data=05%7C02%7C%7C1f918ecb00dd4e16af9008de94ee00e6%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C639111947086408493%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=VkCqv%2Fx%2FT6RA2svROHT2dvHXhVsysAxbWh%2Fx%2B78yGoE%3D&reserved=0";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.prijsmaatje.nl";
 
 /**
  * ✅ FIX: Content-Type alleen bij requests met body.
