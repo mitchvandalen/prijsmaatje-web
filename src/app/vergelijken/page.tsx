@@ -49,14 +49,12 @@ type CompareItem = {
   image_url?: string | null;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.prijsmaatje.nl";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://emea01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fapi.prijsmaatje.nl%2F&data=05%7C02%7C%7C90dcc7876803453b1dcd08de94eab8cf%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C639111932994517112%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=T%2FwAcBLTFTx4knV711ND%2By1ZSUGS%2FgOLm8Ta0vaexkE%3D&reserved=0";
 
-/**
- * ✅ FIX: Content-Type alleen bij requests met body.
- */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
-    ...(init?.headers as Record<string, string> || {}),
+    ...(((init?.headers as Record<string, string>) || {}) ?? {}),
   };
 
   if (init?.body) {
@@ -72,14 +70,19 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`);
+    throw new Error(
+      `${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`
+    );
   }
   return (await res.json()) as T;
 }
 
 function euro(n: number | undefined | null) {
   const v = typeof n === "number" && isFinite(n) ? n : 0;
-  return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(v);
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+  }).format(v);
 }
 
 function safeNumber(n: any): number | null {
@@ -87,10 +90,7 @@ function safeNumber(n: any): number | null {
   return Number.isFinite(v) ? v : null;
 }
 
-// intent storage key
 const PREMIUM_INTENT_KEY = "pm_premium_intent_v1";
-
-// 🔎 default query used ONLY behind the scenes for prefill suggestions
 const PREFILL_QUERY = "aa";
 
 function ReceiptCard({
@@ -105,22 +105,36 @@ function ReceiptCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`rounded-lg border bg-white p-4 ${isWinner ? "ring-2 ring-emerald-400" : ""}`}>
+    <div
+      className={`rounded-lg border bg-white p-4 ${
+        isWinner ? "ring-2 ring-emerald-400" : ""
+      }`}
+    >
       <div className="flex items-center justify-between">
         <div className="text-base font-semibold">{store}</div>
         {isWinner ? (
           <div className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-            ✅ Goedkoopste totaal
+            🏆 Goedkoopste complete winkel
           </div>
         ) : null}
       </div>
-      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+      {subtitle ? (
+        <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
+      ) : null}
       <div className="mt-3">{children}</div>
     </div>
   );
 }
 
-function LineItem({ img, name, price }: { img?: string | null; name: string; price: number | null }) {
+function LineItem({
+  img,
+  name,
+  price,
+}: {
+  img?: string | null;
+  name: string;
+  price: number | null;
+}) {
   return (
     <div className="grid grid-cols-[40px_1fr_auto] items-center gap-2 py-1">
       <div className="h-9 w-9">
@@ -134,7 +148,9 @@ function LineItem({ img, name, price }: { img?: string | null; name: string; pri
       <div className="text-sm">
         <div className="line-clamp-2">{name || "—"}</div>
       </div>
-      <div className="text-sm font-semibold">{price != null ? euro(price) : "—"}</div>
+      <div className="text-sm font-semibold">
+        {price != null ? euro(price) : "—"}
+      </div>
     </div>
   );
 }
@@ -142,48 +158,44 @@ function LineItem({ img, name, price }: { img?: string | null; name: string; pri
 export default function VergelijkenPage() {
   const router = useRouter();
 
-  // ✅ Auth state komt uit backend (/auth/me)
   const [userId, setUserId] = useState<string | null>(null);
   const [premium, setPremium] = useState<boolean>(false);
 
-  const [stores, setStores] = useState<Record<Store, boolean>>({ AH: true, Jumbo: true, Dirk: true });
+  const [stores, setStores] = useState<Record<Store, boolean>>({
+    AH: true,
+    Jumbo: true,
+    Dirk: true,
+  });
 
   const [manualText, setManualText] = useState<string>("");
   const [manualList, setManualList] = useState<string[]>([]);
   const [listName, setListName] = useState<string>("");
 
-  // Suggesties
   const [suggestQuery, setSuggestQuery] = useState<string>("");
   const [suggestOpen, setSuggestOpen] = useState<boolean>(false);
   const [suggestLoading, setSuggestLoading] = useState<boolean>(false);
   const [suggestError, setSuggestError] = useState<string>("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-
-  // ✅ behind-the-scenes query used for fetching
   const [suggestFetchQuery, setSuggestFetchQuery] = useState<string>("");
 
-  // label -> CompareItem (product_id + store + image)
-  const [selectionMap, setSelectionMap] = useState<Record<string, CompareItem>>({});
+  const [selectionMap, setSelectionMap] = useState<Record<string, CompareItem>>(
+    {}
+  );
 
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<CompareResponse | null>(null);
   const [error, setError] = useState<string>("");
 
-  // ✅ Paywall state
   const [paywall, setPaywall] = useState<null | { message: string }>(null);
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "failed"
+  >("idle");
 
-  // Extra UI: save status (premium auto-save)
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
-
-  // perf helpers
   const suggestCache = useRef(new Map<string, Suggestion[]>());
   const abortRef = useRef<AbortController | null>(null);
   const lastReqId = useRef(0);
-
-  // ✅ used to prevent draft-loader overwriting history-loaded list
   const loadedFromHistoryRef = useRef(false);
 
-  // textarea auto-grow
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const autoGrow = () => {
     const el = textareaRef.current;
@@ -192,9 +204,6 @@ export default function VergelijkenPage() {
     el.style.height = `${el.scrollHeight}px`;
   };
 
-  /**
-   * ✅ Load list coming from Geschiedenis page
-   */
   useEffect(() => {
     try {
       const fromHistory = localStorage.getItem("pm_loaded_from_history");
@@ -224,7 +233,6 @@ export default function VergelijkenPage() {
     }
   }, []);
 
-  // persistence
   useEffect(() => {
     if (loadedFromHistoryRef.current) return;
 
@@ -248,7 +256,6 @@ export default function VergelijkenPage() {
     } catch {}
   }, [manualText, stores, listName, selectionMap]);
 
-  // live preview + keep selectionMap clean + auto-grow
   useEffect(() => {
     const lines = manualText
       .split("\n")
@@ -269,11 +276,6 @@ export default function VergelijkenPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manualText]);
 
-  /**
-   * ✅ Auth/premium status: ALTIJD uit backend halen via /auth/me
-   * - userId = echte DB UUID
-   * - premium = subscription status
-   */
   useEffect(() => {
     api<{ user_id: string; email: string; is_premium: boolean }>("/auth/me")
       .then((me) => {
@@ -281,7 +283,6 @@ export default function VergelijkenPage() {
         setPremium(Boolean(me.is_premium));
       })
       .catch(() => {
-        // niet ingelogd / cookie ontbreekt
         setUserId(null);
         setPremium(false);
       });
@@ -301,19 +302,43 @@ export default function VergelijkenPage() {
     return m;
   }, [data, selectedStores]);
 
+  const storeCompleteness = useMemo(() => {
+    const result: Record<Store, { found: number; total: number }> = {
+      AH: { found: 0, total: data?.matches.length || 0 },
+      Jumbo: { found: 0, total: data?.matches.length || 0 },
+      Dirk: { found: 0, total: data?.matches.length || 0 },
+    };
+
+    data?.matches.forEach((row) => {
+      (["AH", "Jumbo", "Dirk"] as Store[]).forEach((s) => {
+        if (safeNumber((row as any)[s]) != null) {
+          result[s].found += 1;
+        }
+      });
+    });
+
+    return result;
+  }, [data]);
+
   const cheapestStoreTotal = useMemo(() => {
     if (!selectedStores.length) return null;
+
     let best: Store | null = null;
     let bestVal = Number.POSITIVE_INFINITY;
+
     selectedStores.forEach((s) => {
+      const stats = storeCompleteness[s];
+      if (!stats || stats.found !== stats.total) return;
+
       const v = totalsMap.get(s) ?? 0;
       if (v < bestVal) {
         bestVal = v;
         best = s;
       }
     });
+
     return best;
-  }, [selectedStores, totalsMap]);
+  }, [selectedStores, totalsMap, storeCompleteness]);
 
   function addSuggestionToList(s: Suggestion) {
     const label = (s.label || "").trim();
@@ -345,7 +370,10 @@ export default function VergelijkenPage() {
     setManualText((prev) => {
       const lines = prev.split("\n");
       const next = lines.filter((l) => l.trim() !== label);
-      return next.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() + (next.length ? "\n" : "");
+      return (
+        next.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd() +
+        (next.length ? "\n" : "")
+      );
     });
 
     setSelectionMap((prev) => {
@@ -355,15 +383,11 @@ export default function VergelijkenPage() {
     });
   }
 
-  /**
-   * ✅ Behind-the-scenes suggestion fetch query
-   */
   useEffect(() => {
     const typed = suggestQuery.trim();
     if (typed) setSuggestFetchQuery(typed);
   }, [suggestQuery]);
 
-  // LIVE SEARCH (ALL) + debounce + cache + abort
   useEffect(() => {
     const q = (suggestFetchQuery || "").trim();
     setSuggestError("");
@@ -404,15 +428,17 @@ export default function VergelijkenPage() {
       const url =
         storeParam === "ALL"
           ? `${API_BASE}/products/search?q=${encodeURIComponent(q)}&limit=20`
-          : `${API_BASE}/products/search?q=${encodeURIComponent(q)}&store=${encodeURIComponent(
-              storeParam
-            )}&limit=20`;
+          : `${API_BASE}/products/search?q=${encodeURIComponent(
+              q
+            )}&store=${encodeURIComponent(storeParam)}&limit=20`;
 
       fetch(url, { signal: controller.signal, credentials: "include" })
         .then(async (r) => {
           if (!r.ok) {
             const text = await r.text().catch(() => "");
-            throw new Error(`${r.status} ${r.statusText}${text ? ` — ${text}` : ""}`);
+            throw new Error(
+              `${r.status} ${r.statusText}${text ? ` — ${text}` : ""}`
+            );
           }
           return (await r.json()) as Suggestion[];
         })
@@ -460,10 +486,10 @@ export default function VergelijkenPage() {
     payload: { stores: Store[]; items: Array<string | CompareItem> },
     result: CompareResponse | null
   ) {
-    // ✅ Als je niet ingelogd bent, kan je geen premium-save intent doen op user_id
-    // Kies zelf: router.push("/login") of naar premium upsell.
     if (!userId) {
-      router.push(`/premium?next=${encodeURIComponent("/vergelijken")}&intent=save_compare`);
+      router.push(
+        `/premium?next=${encodeURIComponent("/vergelijken")}&intent=save_compare`
+      );
       return;
     }
 
@@ -471,7 +497,7 @@ export default function VergelijkenPage() {
       intent: "save_compare",
       from: "vergelijken",
       created_at: new Date().toISOString(),
-      user_id: userId, // ✅ DB user id
+      user_id: userId,
       name: (listName || "").trim() || null,
       draft: {
         manualText,
@@ -515,14 +541,13 @@ export default function VergelijkenPage() {
 
       setData(res);
 
-      // ✅ Premium auto-save alleen als premium én ingelogd (userId aanwezig)
       if (premium && userId) {
         setSaveStatus("saving");
         try {
           await api("/premium/save_compare", {
             method: "POST",
             body: JSON.stringify({
-              user_id: userId, // ✅ DB user id
+              user_id: userId,
               payload,
               result: res,
               name: (listName || "").trim() || null,
@@ -534,7 +559,6 @@ export default function VergelijkenPage() {
         }
       }
     } catch (e: any) {
-      // 🔒 PAYWALL: backend stuurt 402 terug als limiet bereikt is
       if (typeof e?.message === "string" && e.message.startsWith("402")) {
         setPaywall({
           message:
@@ -550,7 +574,11 @@ export default function VergelijkenPage() {
   }
 
   const cheapestByStore = useMemo(() => {
-    const buckets: Record<Store, CheapestRow[]> = { AH: [], Jumbo: [], Dirk: [] };
+    const buckets: Record<Store, CheapestRow[]> = {
+      AH: [],
+      Jumbo: [],
+      Dirk: [],
+    };
     const unpriced: string[] = [];
 
     for (const row of data?.cheapest_per_product || []) {
@@ -561,9 +589,17 @@ export default function VergelijkenPage() {
       buckets[row.store].push(row);
     }
 
-    const subtotals: Record<Store, number> = { AH: 0, Jumbo: 0, Dirk: 0 };
+    const subtotals: Record<Store, number> = {
+      AH: 0,
+      Jumbo: 0,
+      Dirk: 0,
+    };
+
     (Object.keys(buckets) as Store[]).forEach((s) => {
-      subtotals[s] = buckets[s].reduce((acc, r) => acc + (safeNumber(r.price) ?? 0), 0);
+      subtotals[s] = buckets[s].reduce(
+        (acc, r) => acc + (safeNumber(r.price) ?? 0),
+        0
+      );
     });
 
     return { buckets, subtotals, unpriced };
@@ -573,10 +609,11 @@ export default function VergelijkenPage() {
     <div className="space-y-8">
       <div className="pm-header">
         <h1 className="pm-title">Vergelijken 🔎</h1>
-        <p className="pm-subtitle">Vergelijk je boodschappen tussen supermarkten.</p>
+        <p className="pm-subtitle">
+          Vergelijk je boodschappen tussen supermarkten.
+        </p>
       </div>
 
-      {/* Premium info / upsell */}
       <div className="rounded-lg border bg-white p-4">
         {premium ? (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -594,27 +631,36 @@ export default function VergelijkenPage() {
                 <div className="mt-1 text-xs text-slate-500">
                   {saveStatus === "saving" ? "Opslaan…" : null}
                   {saveStatus === "saved" ? "✅ Opgeslagen" : null}
-                  {saveStatus === "failed" ? "⚠️ Kon niet opslaan (probeer opnieuw)" : null}
+                  {saveStatus === "failed"
+                    ? "⚠️ Kon niet opslaan (probeer opnieuw)"
+                    : null}
                 </div>
               ) : null}
             </div>
 
-            <div className="text-xs text-slate-500">Tip: geef je vergelijking een naam voor je historie.</div>
+            <div className="text-xs text-slate-500">
+              Tip: geef je vergelijking een naam voor je historie.
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm">
-              <div className="font-semibold">Wil je je vergelijkingen bewaren?</div>
+              <div className="font-semibold">
+                Wil je je vergelijkingen bewaren?
+              </div>
               <div className="text-slate-500">
-                Met Premium kun je je vergelijkingen <span className="font-medium">opslaan</span>, later{" "}
-                <span className="font-medium">terugkijken</span>, <span className="font-medium">aanpassen</span> en{" "}
-                <span className="font-medium">hergebruiken</span> — handig voor weekboodschappen of vaste lijstjes.
+                Met Premium kun je je vergelijkingen{" "}
+                <span className="font-medium">opslaan</span>, later{" "}
+                <span className="font-medium">terugkijken</span>,{" "}
+                <span className="font-medium">aanpassen</span> en{" "}
+                <span className="font-medium">hergebruiken</span> — handig voor
+                weekboodschappen of vaste lijstjes.
               </div>
               <div className="mt-1 text-xs text-slate-500">
-                💡 Tip: geef je lijst een naam, dan vind je ’m sneller terug in Geschiedenis.
+                💡 Tip: geef je lijst een naam, dan vind je ’m sneller terug in
+                Geschiedenis.
               </div>
 
-              {/* optioneel: laat zien of iemand ingelogd is */}
               <div className="mt-2 text-xs text-slate-500">
                 Status: {userId ? "ingelogd" : "niet ingelogd"}
               </div>
@@ -645,7 +691,9 @@ export default function VergelijkenPage() {
                 <input
                   type="checkbox"
                   checked={stores[s]}
-                  onChange={(e) => setStores((prev) => ({ ...prev, [s]: e.target.checked }))}
+                  onChange={(e) =>
+                    setStores((prev) => ({ ...prev, [s]: e.target.checked }))
+                  }
                 />
                 {s === "AH" ? "Albert Heijn" : s}
               </label>
@@ -657,9 +705,10 @@ export default function VergelijkenPage() {
           <h2 className="pm-h2">Producten kiezen</h2>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr_3fr]">
-            {/* Suggesties */}
             <div>
-              <label className="pm-label">Kies producten uit de suggestielijst</label>
+              <label className="pm-label">
+                Kies producten uit de suggestielijst
+              </label>
 
               <div className="relative">
                 <input
@@ -673,7 +722,6 @@ export default function VergelijkenPage() {
                   onFocus={() => {
                     setSuggestOpen(true);
 
-                    // ✅ prefill suggestions behind the scenes if field is empty
                     if (!suggestQuery.trim()) {
                       setSuggestFetchQuery(PREFILL_QUERY);
                     }
@@ -681,7 +729,6 @@ export default function VergelijkenPage() {
                   onBlur={() => {
                     setTimeout(() => setSuggestOpen(false), 120);
 
-                    // ✅ stop prefill when leaving field (only if user didn't type)
                     if (!suggestQuery.trim()) {
                       setSuggestFetchQuery("");
                       setSuggestions([]);
@@ -694,7 +741,7 @@ export default function VergelijkenPage() {
                       if (first) {
                         addSuggestionToList(first);
                         setSuggestQuery("");
-                        setSuggestFetchQuery(""); // reset
+                        setSuggestFetchQuery("");
                         setSuggestOpen(false);
                       }
                     }
@@ -704,9 +751,13 @@ export default function VergelijkenPage() {
                 {suggestOpen ? (
                   <div className="absolute z-20 mt-1 w-full rounded-lg border bg-white p-1 shadow">
                     {suggestLoading ? (
-                      <div className="px-3 py-2 text-sm text-slate-500">Zoeken…</div>
+                      <div className="px-3 py-2 text-sm text-slate-500">
+                        Zoeken…
+                      </div>
                     ) : suggestError ? (
-                      <div className="px-3 py-2 text-sm text-red-700">{suggestError}</div>
+                      <div className="px-3 py-2 text-sm text-red-700">
+                        {suggestError}
+                      </div>
                     ) : suggestions.length ? (
                       <ul className="max-h-56 overflow-auto">
                         {suggestions.map((opt) => (
@@ -718,7 +769,7 @@ export default function VergelijkenPage() {
                               onClick={() => {
                                 addSuggestionToList(opt);
                                 setSuggestQuery("");
-                                setSuggestFetchQuery(""); // reset
+                                setSuggestFetchQuery("");
                                 setSuggestOpen(false);
                               }}
                             >
@@ -726,14 +777,20 @@ export default function VergelijkenPage() {
                                 <div className="h-8 w-8 shrink-0">
                                   {opt.image_url ? (
                                     // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={opt.image_url} alt="" className="h-8 w-8 rounded object-cover" />
+                                    <img
+                                      src={opt.image_url}
+                                      alt=""
+                                      className="h-8 w-8 rounded object-cover"
+                                    />
                                   ) : (
                                     <div className="h-8 w-8 rounded bg-slate-100" />
                                   )}
                                 </div>
                                 <div className="min-w-0">
                                   <div className="truncate">{opt.label}</div>
-                                  <div className="text-xs text-slate-500">({opt.store})</div>
+                                  <div className="text-xs text-slate-500">
+                                    ({opt.store})
+                                  </div>
                                 </div>
                               </div>
                             </button>
@@ -741,7 +798,9 @@ export default function VergelijkenPage() {
                         ))}
                       </ul>
                     ) : (
-                      <div className="px-3 py-2 text-sm text-slate-500">Geen resultaten</div>
+                      <div className="px-3 py-2 text-sm text-slate-500">
+                        Geen resultaten
+                      </div>
                     )}
                   </div>
                 ) : null}
@@ -750,9 +809,10 @@ export default function VergelijkenPage() {
               <div className="pm-help">Tip: Enter voegt de eerste match toe.</div>
             </div>
 
-            {/* Geselecteerd */}
             <div>
-              <div className="pm-label">Geselecteerd (klik om te verwijderen)</div>
+              <div className="pm-label">
+                Geselecteerd (klik om te verwijderen)
+              </div>
               <div className="rounded-lg border bg-white p-3">
                 {manualList.length ? (
                   <ul className="space-y-2">
@@ -764,7 +824,11 @@ export default function VergelijkenPage() {
                             <div className="h-8 w-8 shrink-0">
                               {meta?.image_url ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={meta.image_url} alt="" className="h-8 w-8 rounded object-cover" />
+                                <img
+                                  src={meta.image_url}
+                                  alt=""
+                                  className="h-8 w-8 rounded object-cover"
+                                />
                               ) : (
                                 <div className="h-8 w-8 rounded bg-slate-100" />
                               )}
@@ -777,7 +841,11 @@ export default function VergelijkenPage() {
                               title="Klik om te verwijderen"
                             >
                               <div className="truncate">{label}</div>
-                              {meta?.store ? <div className="text-xs text-slate-500">({meta.store})</div> : null}
+                              {meta?.store ? (
+                                <div className="text-xs text-slate-500">
+                                  ({meta.store})
+                                </div>
+                              ) : null}
                             </button>
 
                             <button
@@ -793,14 +861,17 @@ export default function VergelijkenPage() {
                     })}
                   </ul>
                 ) : (
-                  <div className="text-sm text-slate-500">Nog geen producten geselecteerd.</div>
+                  <div className="text-sm text-slate-500">
+                    Nog geen producten geselecteerd.
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Boodschappenlijst */}
             <div>
-              <label className="pm-label">Boodschappenlijst (één product per regel)</label>
+              <label className="pm-label">
+                Boodschappenlijst (één product per regel)
+              </label>
               <textarea
                 ref={textareaRef}
                 placeholder={"Bijv.\nMelk 1L\nBananen\nBrood volkoren"}
@@ -808,17 +879,22 @@ export default function VergelijkenPage() {
                 onChange={(e) => setManualText(e.target.value)}
                 style={{ overflow: "hidden", resize: "none" }}
               />
-              <div className="pm-help">Deze groeit nu automatisch mee met je tekst.</div>
+              <div className="pm-help">
+                Deze groeit nu automatisch mee met je tekst.
+              </div>
             </div>
           </div>
         </div>
 
         <div>
           <label className="pm-label">Naam voor deze lijst (optioneel)</label>
-          <input value={listName} onChange={(e) => setListName(e.target.value)} placeholder="Bijv. Weekboodschappen" />
+          <input
+            value={listName}
+            onChange={(e) => setListName(e.target.value)}
+            placeholder="Bijv. Weekboodschappen"
+          />
         </div>
 
-        {/* ✅ PAYWALL KAART */}
         {paywall && (
           <div className="pm-card">
             <div className="space-y-3">
@@ -837,7 +913,9 @@ export default function VergelijkenPage() {
                   type="button"
                   className="pm-ctaBtn"
                   onClick={() => {
-                    router.push(`/premium?next=${encodeURIComponent("/vergelijken")}`);
+                    router.push(
+                      `/premium?next=${encodeURIComponent("/vergelijken")}`
+                    );
                   }}
                 >
                   💎 Bekijk Premium
@@ -851,12 +929,19 @@ export default function VergelijkenPage() {
           </div>
         )}
 
-        <button onClick={runCompare} disabled={loading} className="pm-btn" type="button">
+        <button
+          onClick={runCompare}
+          disabled={loading}
+          className="pm-btn"
+          type="button"
+        >
           {loading ? "Bezig…" : "Vergelijk prijzen"}
         </button>
 
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </div>
         ) : null}
 
         <div className="text-xs text-slate-500">
@@ -864,7 +949,6 @@ export default function VergelijkenPage() {
         </div>
       </div>
 
-      {/* RESULTATEN */}
       {data ? (
         <div className="space-y-6">
           <div className="grid gap-3 md:grid-cols-3">
@@ -872,26 +956,31 @@ export default function VergelijkenPage() {
               <div
                 key={s}
                 className={`rounded-lg border bg-white p-4 ${
-                  ((): boolean => {
-                    let best: Store | null = null;
-                    let bestVal = Number.POSITIVE_INFINITY;
-                    selectedStores.forEach((st) => {
-                      const v = totalsMap.get(st) ?? 0;
-                      if (v < bestVal) {
-                        bestVal = v;
-                        best = st;
-                      }
-                    });
-                    return best === s;
-                  })()
-                    ? "ring-2 ring-emerald-400"
-                    : ""
+                  cheapestStoreTotal === s ? "ring-2 ring-emerald-400" : ""
                 }`}
               >
                 <div className="text-sm text-slate-500">{s}</div>
-                <div className="mt-1 text-xl font-semibold">{euro(totalsMap.get(s))}</div>
+                <div className="mt-1 text-xl font-semibold">
+                  {euro(totalsMap.get(s))}
+                </div>
+
+                <div className="mt-1 text-xs text-slate-500">
+                  {storeCompleteness[s].found} / {storeCompleteness[s].total} gevonden
+                </div>
+
+                {cheapestStoreTotal === s && (
+                  <div className="mt-2 text-xs font-medium text-emerald-700">
+                    🏆 Goedkoopste complete winkel
+                  </div>
+                )}
               </div>
             ))}
+          </div>
+
+          <div className="text-xs text-slate-500">
+            PrijsMaatje matcht momenteel ongeveer 85–95% van de producten
+            automatisch. Soms kan een prijs ontbreken. We verbeteren dit
+            dagelijks.
           </div>
 
           <div className="rounded-lg border bg-white p-4 space-y-4">
@@ -908,7 +997,9 @@ export default function VergelijkenPage() {
                   </Link>
                 </div>
               ) : (
-                <div className="text-xs text-slate-500">Tip: premium → bewaar je compares & historie</div>
+                <div className="text-xs text-slate-500">
+                  Tip: premium → bewaar je compares & historie
+                </div>
               )}
             </div>
 
@@ -918,14 +1009,22 @@ export default function VergelijkenPage() {
                   key={store}
                   store={store}
                   isWinner={cheapestStoreTotal === store}
-                  subtitle="Alle gekozen producten (— = niet gevonden)"
+                  subtitle={`Alle gekozen producten (${storeCompleteness[store].found} / ${storeCompleteness[store].total} gevonden • — = Niet gevonden)`}
                 >
                   <div className="space-y-1">
                     {data.matches.map((row, idx) => {
                       const price = safeNumber((row as any)?.[store]);
-                      const name = (row as any)?.[`${store}_naam`] || row.product || "—";
+                      const name =
+                        (row as any)?.[`${store}_naam`] || row.product || "—";
                       const img = (row as any)?.[`${store}_img`];
-                      return <LineItem key={idx} img={img} name={String(name)} price={price} />;
+                      return (
+                        <LineItem
+                          key={idx}
+                          img={img}
+                          name={String(name)}
+                          price={price}
+                        />
+                      );
                     })}
                   </div>
                 </ReceiptCard>
@@ -947,14 +1046,28 @@ export default function VergelijkenPage() {
                 data.matches.forEach((m) => byProduct.set(String(m.product), m));
 
                 return (
-                  <ReceiptCard store={store} key={store} subtitle="Alleen producten die hier het goedkoopst zijn">
+                  <ReceiptCard
+                    store={store}
+                    key={store}
+                    subtitle="Alleen producten die hier het goedkoopst zijn"
+                  >
                     {items.length ? (
                       <div className="space-y-1">
                         {items.map((it, idx) => {
                           const match = byProduct.get(String(it.product));
-                          const name = (match as any)?.[`${store}_naam`] || it.product || "—";
+                          const name =
+                            (match as any)?.[`${store}_naam`] ||
+                            it.product ||
+                            "—";
                           const img = (match as any)?.[`${store}_img`] || null;
-                          return <LineItem key={idx} img={img} name={String(name)} price={safeNumber(it.price)} />;
+                          return (
+                            <LineItem
+                              key={idx}
+                              img={img}
+                              name={String(name)}
+                              price={safeNumber(it.price)}
+                            />
+                          );
                         })}
                       </div>
                     ) : (
