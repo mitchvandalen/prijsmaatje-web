@@ -50,8 +50,11 @@ type CompareItem = {
 };
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://emea01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fapi.prijsmaatje.nl%2F&data=05%7C02%7C%7C90dcc7876803453b1dcd08de94eab8cf%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C639111932994517112%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=T%2FwAcBLTFTx4knV711ND%2By1ZSUGS%2FgOLm8Ta0vaexkE%3D&reserved=0";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://emea01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fapi.prijsmaatje.nl%2F&data=05%7C02%7C%7C1f918ecb00dd4e16af9008de94ee00e6%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C639111947086408493%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=VkCqv%2Fx%2FT6RA2svROHT2dvHXhVsysAxbWh%2Fx%2B78yGoE%3D&reserved=0";
 
+/**
+ * ✅ FIX: Content-Type alleen bij requests met body.
+ */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     ...(((init?.headers as Record<string, string>) || {}) ?? {}),
@@ -86,11 +89,21 @@ function euro(n: number | undefined | null) {
 }
 
 function safeNumber(n: any): number | null {
+  if (n === null || n === undefined) return null;
+  if (n === "" || n === "-") return null;
+
   const v = Number(n);
-  return Number.isFinite(v) ? v : null;
+
+  if (!Number.isFinite(v)) return null;
+  if (v <= 0) return null; // 0 of negatieve prijzen tellen als niet gevonden
+
+  return v;
 }
 
+// intent storage key
 const PREMIUM_INTENT_KEY = "pm_premium_intent_v1";
+
+// 🔎 default query used ONLY behind the scenes for prefill suggestions
 const PREFILL_QUERY = "aa";
 
 function ReceiptCard({
@@ -158,6 +171,7 @@ function LineItem({
 export default function VergelijkenPage() {
   const router = useRouter();
 
+  // ✅ Auth state komt uit backend (/auth/me)
   const [userId, setUserId] = useState<string | null>(null);
   const [premium, setPremium] = useState<boolean>(false);
 
@@ -171,13 +185,17 @@ export default function VergelijkenPage() {
   const [manualList, setManualList] = useState<string[]>([]);
   const [listName, setListName] = useState<string>("");
 
+  // Suggesties
   const [suggestQuery, setSuggestQuery] = useState<string>("");
   const [suggestOpen, setSuggestOpen] = useState<boolean>(false);
   const [suggestLoading, setSuggestLoading] = useState<boolean>(false);
   const [suggestError, setSuggestError] = useState<string>("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+
+  // ✅ behind-the-scenes query used for fetching
   const [suggestFetchQuery, setSuggestFetchQuery] = useState<string>("");
 
+  // label -> CompareItem (product_id + store + image)
   const [selectionMap, setSelectionMap] = useState<Record<string, CompareItem>>(
     {}
   );
@@ -186,16 +204,23 @@ export default function VergelijkenPage() {
   const [data, setData] = useState<CompareResponse | null>(null);
   const [error, setError] = useState<string>("");
 
+  // ✅ Paywall state
   const [paywall, setPaywall] = useState<null | { message: string }>(null);
+
+  // Extra UI: save status (premium auto-save)
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "failed"
   >("idle");
 
+  // perf helpers
   const suggestCache = useRef(new Map<string, Suggestion[]>());
   const abortRef = useRef<AbortController | null>(null);
   const lastReqId = useRef(0);
+
+  // ✅ used to prevent draft-loader overwriting history-loaded list
   const loadedFromHistoryRef = useRef(false);
 
+  // textarea auto-grow
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const autoGrow = () => {
     const el = textareaRef.current;
@@ -204,6 +229,9 @@ export default function VergelijkenPage() {
     el.style.height = `${el.scrollHeight}px`;
   };
 
+  /**
+   * ✅ Load list coming from Geschiedenis page
+   */
   useEffect(() => {
     try {
       const fromHistory = localStorage.getItem("pm_loaded_from_history");
@@ -233,6 +261,7 @@ export default function VergelijkenPage() {
     }
   }, []);
 
+  // persistence
   useEffect(() => {
     if (loadedFromHistoryRef.current) return;
 
@@ -240,7 +269,8 @@ export default function VergelijkenPage() {
       const raw = localStorage.getItem("pm_compare_draft_v7");
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (typeof parsed?.manualText === "string") setManualText(parsed.manualText);
+      if (typeof parsed?.manualText === "string")
+        setManualText(parsed.manualText);
       if (parsed?.stores) setStores(parsed.stores);
       if (typeof parsed?.listName === "string") setListName(parsed.listName);
       if (parsed?.selectionMap) setSelectionMap(parsed.selectionMap);
@@ -256,6 +286,7 @@ export default function VergelijkenPage() {
     } catch {}
   }, [manualText, stores, listName, selectionMap]);
 
+  // live preview + keep selectionMap clean + auto-grow
   useEffect(() => {
     const lines = manualText
       .split("\n")
@@ -276,6 +307,11 @@ export default function VergelijkenPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manualText]);
 
+  /**
+   * ✅ Auth/premium status: ALTIJD uit backend halen via /auth/me
+   * - userId = echte DB UUID
+   * - premium = subscription status
+   */
   useEffect(() => {
     api<{ user_id: string; email: string; is_premium: boolean }>("/auth/me")
       .then((me) => {
@@ -283,6 +319,7 @@ export default function VergelijkenPage() {
         setPremium(Boolean(me.is_premium));
       })
       .catch(() => {
+        // niet ingelogd / cookie ontbreekt
         setUserId(null);
         setPremium(false);
       });
@@ -303,13 +340,15 @@ export default function VergelijkenPage() {
   }, [data, selectedStores]);
 
   const storeCompleteness = useMemo(() => {
+    const total = data?.matches?.length || 0;
+
     const result: Record<Store, { found: number; total: number }> = {
-      AH: { found: 0, total: data?.matches.length || 0 },
-      Jumbo: { found: 0, total: data?.matches.length || 0 },
-      Dirk: { found: 0, total: data?.matches.length || 0 },
+      AH: { found: 0, total },
+      Jumbo: { found: 0, total },
+      Dirk: { found: 0, total },
     };
 
-    data?.matches.forEach((row) => {
+    (data?.matches || []).forEach((row) => {
       (["AH", "Jumbo", "Dirk"] as Store[]).forEach((s) => {
         if (safeNumber((row as any)[s]) != null) {
           result[s].found += 1;
@@ -328,7 +367,8 @@ export default function VergelijkenPage() {
 
     selectedStores.forEach((s) => {
       const stats = storeCompleteness[s];
-      if (!stats || stats.found !== stats.total) return;
+      if (!stats) return;
+      if (stats.found !== stats.total) return;
 
       const v = totalsMap.get(s) ?? 0;
       if (v < bestVal) {
@@ -383,11 +423,15 @@ export default function VergelijkenPage() {
     });
   }
 
+  /**
+   * ✅ Behind-the-scenes suggestion fetch query
+   */
   useEffect(() => {
     const typed = suggestQuery.trim();
     if (typed) setSuggestFetchQuery(typed);
   }, [suggestQuery]);
 
+  // LIVE SEARCH (ALL) + debounce + cache + abort
   useEffect(() => {
     const q = (suggestFetchQuery || "").trim();
     setSuggestError("");
@@ -486,9 +530,13 @@ export default function VergelijkenPage() {
     payload: { stores: Store[]; items: Array<string | CompareItem> },
     result: CompareResponse | null
   ) {
+    // ✅ Als je niet ingelogd bent, kan je geen premium-save intent doen op user_id
+    // Kies zelf: router.push("/login") of naar premium upsell.
     if (!userId) {
       router.push(
-        `/premium?next=${encodeURIComponent("/vergelijken")}&intent=save_compare`
+        `/premium?next=${encodeURIComponent(
+          "/vergelijken"
+        )}&intent=save_compare`
       );
       return;
     }
@@ -497,7 +545,7 @@ export default function VergelijkenPage() {
       intent: "save_compare",
       from: "vergelijken",
       created_at: new Date().toISOString(),
-      user_id: userId,
+      user_id: userId, // ✅ DB user id
       name: (listName || "").trim() || null,
       draft: {
         manualText,
@@ -541,13 +589,14 @@ export default function VergelijkenPage() {
 
       setData(res);
 
+      // ✅ Premium auto-save alleen als premium én ingelogd (userId aanwezig)
       if (premium && userId) {
         setSaveStatus("saving");
         try {
           await api("/premium/save_compare", {
             method: "POST",
             body: JSON.stringify({
-              user_id: userId,
+              user_id: userId, // ✅ DB user id
               payload,
               result: res,
               name: (listName || "").trim() || null,
@@ -559,6 +608,7 @@ export default function VergelijkenPage() {
         }
       }
     } catch (e: any) {
+      // 🔒 PAYWALL: backend stuurt 402 terug als limiet bereikt is
       if (typeof e?.message === "string" && e.message.startsWith("402")) {
         setPaywall({
           message:
@@ -589,12 +639,7 @@ export default function VergelijkenPage() {
       buckets[row.store].push(row);
     }
 
-    const subtotals: Record<Store, number> = {
-      AH: 0,
-      Jumbo: 0,
-      Dirk: 0,
-    };
-
+    const subtotals: Record<Store, number> = { AH: 0, Jumbo: 0, Dirk: 0 };
     (Object.keys(buckets) as Store[]).forEach((s) => {
       subtotals[s] = buckets[s].reduce(
         (acc, r) => acc + (safeNumber(r.price) ?? 0),
@@ -614,6 +659,7 @@ export default function VergelijkenPage() {
         </p>
       </div>
 
+      {/* Premium info / upsell */}
       <div className="rounded-lg border bg-white p-4">
         {premium ? (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -661,6 +707,7 @@ export default function VergelijkenPage() {
                 Geschiedenis.
               </div>
 
+              {/* optioneel: laat zien of iemand ingelogd is */}
               <div className="mt-2 text-xs text-slate-500">
                 Status: {userId ? "ingelogd" : "niet ingelogd"}
               </div>
@@ -705,6 +752,7 @@ export default function VergelijkenPage() {
           <h2 className="pm-h2">Producten kiezen</h2>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr_3fr]">
+            {/* Suggesties */}
             <div>
               <label className="pm-label">
                 Kies producten uit de suggestielijst
@@ -722,6 +770,7 @@ export default function VergelijkenPage() {
                   onFocus={() => {
                     setSuggestOpen(true);
 
+                    // ✅ prefill suggestions behind the scenes if field is empty
                     if (!suggestQuery.trim()) {
                       setSuggestFetchQuery(PREFILL_QUERY);
                     }
@@ -729,6 +778,7 @@ export default function VergelijkenPage() {
                   onBlur={() => {
                     setTimeout(() => setSuggestOpen(false), 120);
 
+                    // ✅ stop prefill when leaving field (only if user didn't type)
                     if (!suggestQuery.trim()) {
                       setSuggestFetchQuery("");
                       setSuggestions([]);
@@ -741,7 +791,7 @@ export default function VergelijkenPage() {
                       if (first) {
                         addSuggestionToList(first);
                         setSuggestQuery("");
-                        setSuggestFetchQuery("");
+                        setSuggestFetchQuery(""); // reset
                         setSuggestOpen(false);
                       }
                     }
@@ -769,7 +819,7 @@ export default function VergelijkenPage() {
                               onClick={() => {
                                 addSuggestionToList(opt);
                                 setSuggestQuery("");
-                                setSuggestFetchQuery("");
+                                setSuggestFetchQuery(""); // reset
                                 setSuggestOpen(false);
                               }}
                             >
@@ -806,9 +856,12 @@ export default function VergelijkenPage() {
                 ) : null}
               </div>
 
-              <div className="pm-help">Tip: Enter voegt de eerste match toe.</div>
+              <div className="pm-help">
+                Tip: Enter voegt de eerste match toe.
+              </div>
             </div>
 
+            {/* Geselecteerd */}
             <div>
               <div className="pm-label">
                 Geselecteerd (klik om te verwijderen)
@@ -868,6 +921,7 @@ export default function VergelijkenPage() {
               </div>
             </div>
 
+            {/* Boodschappenlijst */}
             <div>
               <label className="pm-label">
                 Boodschappenlijst (één product per regel)
@@ -895,6 +949,7 @@ export default function VergelijkenPage() {
           />
         </div>
 
+        {/* ✅ PAYWALL KAART */}
         {paywall && (
           <div className="pm-card">
             <div className="space-y-3">
@@ -949,6 +1004,7 @@ export default function VergelijkenPage() {
         </div>
       </div>
 
+      {/* RESULTATEN */}
       {data ? (
         <div className="space-y-6">
           <div className="grid gap-3 md:grid-cols-3">
@@ -963,16 +1019,15 @@ export default function VergelijkenPage() {
                 <div className="mt-1 text-xl font-semibold">
                   {euro(totalsMap.get(s))}
                 </div>
-
                 <div className="mt-1 text-xs text-slate-500">
-                  {storeCompleteness[s].found} / {storeCompleteness[s].total} gevonden
+                  {storeCompleteness[s].found} / {storeCompleteness[s].total}{" "}
+                  gevonden
                 </div>
-
-                {cheapestStoreTotal === s && (
+                {cheapestStoreTotal === s ? (
                   <div className="mt-2 text-xs font-medium text-emerald-700">
                     🏆 Goedkoopste complete winkel
                   </div>
-                )}
+                ) : null}
               </div>
             ))}
           </div>
@@ -1009,7 +1064,7 @@ export default function VergelijkenPage() {
                   key={store}
                   store={store}
                   isWinner={cheapestStoreTotal === store}
-                  subtitle={`Alle gekozen producten (${storeCompleteness[store].found} / ${storeCompleteness[store].total} gevonden • — = Niet gevonden)`}
+                  subtitle={`${storeCompleteness[store].found} / ${storeCompleteness[store].total} gevonden • — = Niet gevonden`}
                 >
                   <div className="space-y-1">
                     {data.matches.map((row, idx) => {
