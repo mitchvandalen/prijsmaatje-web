@@ -57,7 +57,7 @@ const API_BASE =
  */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
-    ...(((init?.headers as Record<string, string>) || {}) ?? {}),
+    ...(init?.headers as Record<string, string> || {}),
   };
 
   if (init?.body) {
@@ -612,7 +612,7 @@ export default function VergelijkenPage() {
       if (typeof e?.message === "string" && e.message.startsWith("402")) {
         setPaywall({
           message:
-            "Je hebt je gratis limiet bereikt. Bekijk Premium om onbeperkt te vergelijken en je resultaten op te slaan.",
+            "Je hebt je gratis limiet bereikt. Probeer Premium 7 dagen gratis en vergelijk onbeperkt.",
         });
         return;
       }
@@ -713,18 +713,23 @@ export default function VergelijkenPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              className="pm-btn"
-              onClick={() => {
-                const itemsToSend = buildItemsToSend();
-                const payload = buildPayload(itemsToSend);
-                startPremiumIntentSave(payload, data);
-              }}
-              title="Premium nodig om op te slaan"
-            >
-              💾 Sla vergelijking op (Premium)
-            </button>
+            <div className="flex flex-col items-stretch gap-2">
+              <button
+                type="button"
+                className="pm-btn"
+                onClick={() => {
+                  const itemsToSend = buildItemsToSend();
+                  const payload = buildPayload(itemsToSend);
+                  startPremiumIntentSave(payload, data);
+                }}
+                title="Premium nodig om op te slaan"
+              >
+                💾 Sla vergelijking op (Premium — probeer 7 dagen gratis)
+              </button>
+              <div className="text-center text-xs text-slate-500">
+                Annuleer wanneer je wilt.
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -750,6 +755,12 @@ export default function VergelijkenPage() {
 
         <div>
           <h2 className="pm-h2">Producten kiezen</h2>
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            💡 Tip: Gebruik de suggestielijst voor de meest nauwkeurige
+            prijsvergelijking. Handmatig ingevoerde producten kunnen soms minder
+            goed gematcht worden.
+          </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr_3fr]">
             {/* Suggesties */}
@@ -973,9 +984,13 @@ export default function VergelijkenPage() {
                     );
                   }}
                 >
-                  💎 Bekijk Premium
+                  💎 Bekijk Premium — 7 dagen gratis
                 </button>
               </div>
+
+              <p className="pm-caption" style={{ textAlign: "center" }}>
+                Annuleer wanneer je wilt.
+              </p>
 
               <p className="pm-caption" style={{ textAlign: "center" }}>
                 Lees eerst wat Premium je oplevert — activeren kan daarna.
