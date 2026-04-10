@@ -758,8 +758,8 @@ export default function VergelijkenPage() {
 
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
             💡 Tip: Gebruik de suggestielijst voor de meest nauwkeurige
-            prijsvergelijking. Handmatig ingevoerde producten kunnen soms minder
-            goed gematcht worden.
+            prijsvergelijking. Voor huismerken typ “AH”, “Jumbo” of “1 De
+            Beste”.
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr_3fr]">
