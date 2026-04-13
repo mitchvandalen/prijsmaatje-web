@@ -1,14 +1,15 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
+import { useRouter, useSearchParams } from "next/navigation";
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.prijsmaatje.nl";
 
 function errorToText(err: any): string {
   if (!err) return "Onbekende fout";
   if (typeof err === "string") return err;
-
   if (typeof err?.message === "string" && err.message.trim()) return err.message;
 
   if (err?.detail) {
@@ -17,13 +18,9 @@ function errorToText(err: any): string {
         .map((d: any) => d?.msg || d?.message || "")
         .filter(Boolean);
       if (msgs.length) return msgs.join(", ");
-      return "Ongeldige invoer (detail)";
     }
     if (typeof err.detail === "string") return err.detail;
   }
-
-  if (typeof err?.error === "string") return err.error;
-  if (typeof err?.msg === "string") return err.msg;
 
   try {
     return JSON.stringify(err);
@@ -32,43 +29,61 @@ function errorToText(err: any): string {
   }
 }
 
-export default function LoginInner() {
+export default function ResetPasswordPage() {
   const router = useRouter();
   const sp = useSearchParams();
-  const { login } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const token = useMemo(() => sp.get("token") || "", [sp]);
+
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [passwordRepeat, setPasswordRepeat] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  const nextQuery = useMemo(() => sp.get("next"), [sp]);
-
-  function safeNext(): string | null {
-    const next = nextQuery;
-    if (!next) return null;
-
-    try {
-      const decoded = decodeURIComponent(next);
-      if (decoded.startsWith("/")) return decoded;
-      return null;
-    } catch {
-      return null;
-    }
-  }
+  const [successText, setSuccessText] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (submitting) return;
 
     setError(null);
+    setSuccessText(null);
+
+    if (!token) {
+      setError("Ongeldige resetlink.");
+      return;
+    }
+
+    if (password !== passwordRepeat) {
+      setError("De wachtwoorden zijn niet gelijk.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      await login(email, password, false);
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          token,
+          password,
+        }),
+      });
 
-      const next = safeNext();
-      router.replace(next || "/");
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw data;
+      }
+
+      setSuccessText(data?.message || "Je wachtwoord is succesvol gewijzigd.");
+
+      setTimeout(() => {
+        router.replace("/");
+      }, 1200);
     } catch (err: any) {
       setError(errorToText(err));
     } finally {
@@ -76,14 +91,12 @@ export default function LoginInner() {
     }
   }
 
-  const registerHref = `/register${nextQuery ? `?next=${encodeURIComponent(nextQuery)}` : ""}`;
-
   return (
     <div className="pm-page">
       <div className="pm-header">
-        <div className="pm-title">PrijsMaatje 🛒</div>
+        <div className="pm-title">Nieuw wachtwoord instellen 🔐</div>
         <div className="pm-subtitle">
-          Log in om je geschiedenis, vaste lijstjes en Premium te gebruiken.
+          Kies hieronder een nieuw wachtwoord voor je account.
         </div>
       </div>
 
@@ -91,52 +104,57 @@ export default function LoginInner() {
 
       <div style={{ maxWidth: 520 }}>
         <div className="pm-card">
-          <div className="pm-h2">Inloggen</div>
+          <div className="pm-h2">Wachtwoord resetten</div>
           <div className="pm-text" style={{ marginBottom: 12 }}>
-            Welkom terug! Log in om verder te gaan.
+            Vul je nieuwe wachtwoord in en bevestig het nog een keer.
           </div>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
             <label style={{ display: "grid", gap: 6 }}>
               <span className="pm-text" style={{ fontWeight: 600 }}>
-                Email
-              </span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-                placeholder="jij@voorbeeld.nl"
-              />
-            </label>
-
-            <label style={{ display: "grid", gap: 6 }}>
-              <span className="pm-text" style={{ fontWeight: 600 }}>
-                Wachtwoord
+                Nieuw wachtwoord
               </span>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
+                autoComplete="new-password"
                 required
-                placeholder="Je wachtwoord"
+                minLength={6}
+                placeholder="Nieuw wachtwoord"
               />
             </label>
 
-            <div style={{ marginTop: -4 }}>
-              <Link
-                href="/forgot-password"
+            <label style={{ display: "grid", gap: 6 }}>
+              <span className="pm-text" style={{ fontWeight: 600 }}>
+                Herhaal nieuw wachtwoord
+              </span>
+              <input
+                type="password"
+                value={passwordRepeat}
+                onChange={(e) => setPasswordRepeat(e.target.value)}
+                autoComplete="new-password"
+                required
+                minLength={6}
+                placeholder="Herhaal nieuw wachtwoord"
+              />
+            </label>
+
+            {successText && (
+              <div
+                className="pm-text"
                 style={{
-                  color: "var(--pm-indigo)",
-                  fontWeight: 700,
-                  fontSize: 14,
+                  color: "#166534",
+                  fontWeight: 600,
+                  background: "rgba(22,101,52,0.06)",
+                  border: "1px solid rgba(22,101,52,0.18)",
+                  padding: "10px 12px",
+                  borderRadius: 12,
                 }}
               >
-                Wachtwoord vergeten?
-              </Link>
-            </div>
+                {successText}
+              </div>
+            )}
 
             {error && (
               <div
@@ -155,17 +173,17 @@ export default function LoginInner() {
             )}
 
             <button className="pm-btn" disabled={submitting}>
-              {submitting ? "Bezig..." : "Inloggen"}
+              {submitting ? "Bezig..." : "Wachtwoord opslaan"}
             </button>
           </form>
 
           <div className="pm-caption" style={{ marginTop: 14 }}>
-            Nog geen account?{" "}
+            Terug naar{" "}
             <Link
-              href={registerHref}
+              href="/login"
               style={{ color: "var(--pm-indigo)", fontWeight: 700 }}
             >
-              Registreren
+              inloggen
             </Link>
           </div>
         </div>

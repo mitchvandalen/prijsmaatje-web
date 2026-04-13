@@ -1,14 +1,14 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.prijsmaatje.nl";
 
 function errorToText(err: any): string {
   if (!err) return "Onbekende fout";
   if (typeof err === "string") return err;
-
   if (typeof err?.message === "string" && err.message.trim()) return err.message;
 
   if (err?.detail) {
@@ -17,13 +17,9 @@ function errorToText(err: any): string {
         .map((d: any) => d?.msg || d?.message || "")
         .filter(Boolean);
       if (msgs.length) return msgs.join(", ");
-      return "Ongeldige invoer (detail)";
     }
     if (typeof err.detail === "string") return err.detail;
   }
-
-  if (typeof err?.error === "string") return err.error;
-  if (typeof err?.msg === "string") return err.msg;
 
   try {
     return JSON.stringify(err);
@@ -32,43 +28,40 @@ function errorToText(err: any): string {
   }
 }
 
-export default function LoginInner() {
-  const router = useRouter();
-  const sp = useSearchParams();
-  const { login } = useAuth();
-
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const nextQuery = useMemo(() => sp.get("next"), [sp]);
-
-  function safeNext(): string | null {
-    const next = nextQuery;
-    if (!next) return null;
-
-    try {
-      const decoded = decodeURIComponent(next);
-      if (decoded.startsWith("/")) return decoded;
-      return null;
-    } catch {
-      return null;
-    }
-  }
+  const [successText, setSuccessText] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (submitting) return;
 
-    setError(null);
     setSubmitting(true);
+    setError(null);
+    setSuccessText(null);
 
     try {
-      await login(email, password, false);
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ email }),
+      });
 
-      const next = safeNext();
-      router.replace(next || "/");
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw data;
+      }
+
+      setSuccessText(
+        data?.message ||
+          "Als er een account bestaat voor dit e-mailadres, is er een resetlink verstuurd."
+      );
     } catch (err: any) {
       setError(errorToText(err));
     } finally {
@@ -76,14 +69,12 @@ export default function LoginInner() {
     }
   }
 
-  const registerHref = `/register${nextQuery ? `?next=${encodeURIComponent(nextQuery)}` : ""}`;
-
   return (
     <div className="pm-page">
       <div className="pm-header">
-        <div className="pm-title">PrijsMaatje 🛒</div>
+        <div className="pm-title">Wachtwoord vergeten 🔑</div>
         <div className="pm-subtitle">
-          Log in om je geschiedenis, vaste lijstjes en Premium te gebruiken.
+          Vul je e-mailadres in. Als er een account bestaat, sturen we een resetlink.
         </div>
       </div>
 
@@ -91,9 +82,9 @@ export default function LoginInner() {
 
       <div style={{ maxWidth: 520 }}>
         <div className="pm-card">
-          <div className="pm-h2">Inloggen</div>
+          <div className="pm-h2">Resetlink aanvragen</div>
           <div className="pm-text" style={{ marginBottom: 12 }}>
-            Welkom terug! Log in om verder te gaan.
+            We sturen je een link waarmee je een nieuw wachtwoord kunt instellen.
           </div>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
@@ -111,32 +102,21 @@ export default function LoginInner() {
               />
             </label>
 
-            <label style={{ display: "grid", gap: 6 }}>
-              <span className="pm-text" style={{ fontWeight: 600 }}>
-                Wachtwoord
-              </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-                placeholder="Je wachtwoord"
-              />
-            </label>
-
-            <div style={{ marginTop: -4 }}>
-              <Link
-                href="/forgot-password"
+            {successText && (
+              <div
+                className="pm-text"
                 style={{
-                  color: "var(--pm-indigo)",
-                  fontWeight: 700,
-                  fontSize: 14,
+                  color: "#166534",
+                  fontWeight: 600,
+                  background: "rgba(22,101,52,0.06)",
+                  border: "1px solid rgba(22,101,52,0.18)",
+                  padding: "10px 12px",
+                  borderRadius: 12,
                 }}
               >
-                Wachtwoord vergeten?
-              </Link>
-            </div>
+                {successText}
+              </div>
+            )}
 
             {error && (
               <div
@@ -155,17 +135,17 @@ export default function LoginInner() {
             )}
 
             <button className="pm-btn" disabled={submitting}>
-              {submitting ? "Bezig..." : "Inloggen"}
+              {submitting ? "Bezig..." : "Verstuur resetlink"}
             </button>
           </form>
 
           <div className="pm-caption" style={{ marginTop: 14 }}>
-            Nog geen account?{" "}
+            Weet je je wachtwoord toch weer?{" "}
             <Link
-              href={registerHref}
+              href="/login"
               style={{ color: "var(--pm-indigo)", fontWeight: 700 }}
             >
-              Registreren
+              Terug naar inloggen
             </Link>
           </div>
         </div>
