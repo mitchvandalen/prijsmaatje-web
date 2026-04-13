@@ -57,7 +57,7 @@ const API_BASE =
  */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
-    ...(init?.headers as Record<string, string> || {}),
+    ...(((init?.headers as Record<string, string>) || {})),
   };
 
   if (init?.body) {
@@ -380,6 +380,21 @@ export default function VergelijkenPage() {
     return best;
   }, [selectedStores, totalsMap, storeCompleteness]);
 
+  const highestCompleteStoreTotal = useMemo(() => {
+    if (!selectedStores.length) return null;
+
+    const completeTotals = selectedStores
+      .filter((s) => {
+        const stats = storeCompleteness[s];
+        return stats && stats.total > 0 && stats.found === stats.total;
+      })
+      .map((s) => totalsMap.get(s) ?? 0);
+
+    if (!completeTotals.length) return null;
+
+    return Math.max(...completeTotals);
+  }, [selectedStores, storeCompleteness, totalsMap]);
+
   function addSuggestionToList(s: Suggestion) {
     const label = (s.label || "").trim();
     if (!label) return;
@@ -649,6 +664,16 @@ export default function VergelijkenPage() {
 
     return { buckets, subtotals, unpriced };
   }, [data]);
+
+  const cheapestPerStoreHighestTotal = useMemo(() => {
+    if (!selectedStores.length) return 0;
+
+    const totals = selectedStores.map(
+      (store) => cheapestByStore.subtotals[store] || 0
+    );
+
+    return totals.length ? Math.max(...totals) : 0;
+  }, [selectedStores, cheapestByStore]);
 
   return (
     <div className="space-y-8">
@@ -1023,28 +1048,41 @@ export default function VergelijkenPage() {
       {data ? (
         <div className="space-y-6">
           <div className="grid gap-3 md:grid-cols-3">
-            {selectedStores.map((s) => (
-              <div
-                key={s}
-                className={`rounded-lg border bg-white p-4 ${
-                  cheapestStoreTotal === s ? "ring-2 ring-emerald-400" : ""
-                }`}
-              >
-                <div className="text-sm text-slate-500">{s}</div>
-                <div className="mt-1 text-xl font-semibold">
-                  {euro(totalsMap.get(s))}
-                </div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {storeCompleteness[s].found} / {storeCompleteness[s].total}{" "}
-                  gevonden
-                </div>
-                {cheapestStoreTotal === s ? (
-                  <div className="mt-2 text-xs font-medium text-emerald-700">
-                    🏆 Goedkoopste complete winkel
+            {selectedStores.map((s) => {
+              const total = totalsMap.get(s) ?? 0;
+              const stats = storeCompleteness[s];
+              const isComplete = stats.total > 0 && stats.found === stats.total;
+
+              const savings =
+                isComplete && highestCompleteStoreTotal != null
+                  ? Math.max(0, highestCompleteStoreTotal - total)
+                  : 0;
+
+              return (
+                <div
+                  key={s}
+                  className={`rounded-lg border bg-white p-4 ${
+                    cheapestStoreTotal === s ? "ring-2 ring-emerald-400" : ""
+                  }`}
+                >
+                  <div className="text-sm text-slate-500">{s}</div>
+                  <div className="mt-1 text-xl font-semibold">{euro(total)}</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {stats.found} / {stats.total} gevonden
                   </div>
-                ) : null}
-              </div>
-            ))}
+                  {cheapestStoreTotal === s ? (
+                    <div className="mt-2 text-xs font-medium text-emerald-700">
+                      🏆 Goedkoopste complete winkel
+                    </div>
+                  ) : null}
+                  {savings > 0 ? (
+                    <div className="mt-3 text-xs font-medium text-emerald-700">
+                      Je bespaart {euro(savings)} t.o.v. de duurste
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
 
           <div className="text-xs text-slate-500">
@@ -1111,6 +1149,10 @@ export default function VergelijkenPage() {
               {selectedStores.map((store) => {
                 const items = cheapestByStore.buckets[store] || [];
                 const subtotal = cheapestByStore.subtotals[store] || 0;
+                const savings = Math.max(
+                  0,
+                  cheapestPerStoreHighestTotal - subtotal
+                );
 
                 const byProduct = new Map<string, CompareMatchRow>();
                 data.matches.forEach((m) => byProduct.set(String(m.product), m));
@@ -1148,6 +1190,12 @@ export default function VergelijkenPage() {
                     <div className="text-base font-semibold">
                       Totaal: <span className="font-bold">{euro(subtotal)}</span>
                     </div>
+
+                    {savings > 0 ? (
+                      <div className="mt-2 text-sm font-medium text-emerald-700">
+                        Je bespaart {euro(savings)} t.o.v. de duurste
+                      </div>
+                    ) : null}
                   </ReceiptCard>
                 );
               })}
