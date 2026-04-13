@@ -10,7 +10,7 @@ const nav = [
 
 export default function Sidebar() {
   return (
-    <aside className="pm-sidebar">
+    <aside className="pm-sidebar hidden md:block">
       <div className="pm-sideHeader">
         <div className="pm-brand">PrijsMaatje</div>
         <div className="pm-sideSub">menu</div>
@@ -26,4 +26,3 @@ export default function Sidebar() {
     </aside>
   );
 }
-
