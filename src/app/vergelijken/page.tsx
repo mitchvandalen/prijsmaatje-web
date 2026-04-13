@@ -545,8 +545,6 @@ export default function VergelijkenPage() {
     payload: { stores: Store[]; items: Array<string | CompareItem> },
     result: CompareResponse | null
   ) {
-    // ✅ Als je niet ingelogd bent, kan je geen premium-save intent doen op user_id
-    // Kies zelf: router.push("/login") of naar premium upsell.
     if (!userId) {
       router.push(
         `/premium?next=${encodeURIComponent(
@@ -560,7 +558,7 @@ export default function VergelijkenPage() {
       intent: "save_compare",
       from: "vergelijken",
       created_at: new Date().toISOString(),
-      user_id: userId, // ✅ DB user id
+      user_id: userId,
       name: (listName || "").trim() || null,
       draft: {
         manualText,
@@ -604,14 +602,13 @@ export default function VergelijkenPage() {
 
       setData(res);
 
-      // ✅ Premium auto-save alleen als premium én ingelogd (userId aanwezig)
       if (premium && userId) {
         setSaveStatus("saving");
         try {
           await api("/premium/save_compare", {
             method: "POST",
             body: JSON.stringify({
-              user_id: userId, // ✅ DB user id
+              user_id: userId,
               payload,
               result: res,
               name: (listName || "").trim() || null,
@@ -623,7 +620,6 @@ export default function VergelijkenPage() {
         }
       }
     } catch (e: any) {
-      // 🔒 PAYWALL: backend stuurt 402 terug als limiet bereikt is
       if (typeof e?.message === "string" && e.message.startsWith("402")) {
         setPaywall({
           message:
@@ -665,15 +661,47 @@ export default function VergelijkenPage() {
     return { buckets, subtotals, unpriced };
   }, [data]);
 
-  const cheapestPerStoreHighestTotal = useMemo(() => {
-    if (!selectedStores.length) return 0;
+  const cheapestByStoreSavings = useMemo(() => {
+    const result: Record<Store, number> = {
+      AH: 0,
+      Jumbo: 0,
+      Dirk: 0,
+    };
 
-    const totals = selectedStores.map(
-      (store) => cheapestByStore.subtotals[store] || 0
-    );
+    const byProduct = new Map<string, CompareMatchRow>();
+    (data?.matches || []).forEach((row) => {
+      byProduct.set(String(row.product), row);
+    });
 
-    return totals.length ? Math.max(...totals) : 0;
-  }, [selectedStores, cheapestByStore]);
+    (["AH", "Jumbo", "Dirk"] as Store[]).forEach((store) => {
+      const items = cheapestByStore.buckets[store] || [];
+
+      let subtotal = 0;
+      let highestComparableTotal = 0;
+
+      items.forEach((item) => {
+        const ownPrice = safeNumber(item.price);
+        if (ownPrice == null) return;
+
+        subtotal += ownPrice;
+
+        const match = byProduct.get(String(item.product));
+        if (!match) return;
+
+        const prices = selectedStores
+          .map((s) => safeNumber((match as any)?.[s]))
+          .filter((p): p is number => p != null);
+
+        if (prices.length) {
+          highestComparableTotal += Math.max(...prices);
+        }
+      });
+
+      result[store] = Math.max(0, highestComparableTotal - subtotal);
+    });
+
+    return result;
+  }, [data, cheapestByStore, selectedStores]);
 
   return (
     <div className="space-y-8">
@@ -732,7 +760,6 @@ export default function VergelijkenPage() {
                 Geschiedenis.
               </div>
 
-              {/* optioneel: laat zien of iemand ingelogd is */}
               <div className="mt-2 text-xs text-slate-500">
                 Status: {userId ? "ingelogd" : "niet ingelogd"}
               </div>
@@ -788,7 +815,6 @@ export default function VergelijkenPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr_3fr]">
-            {/* Suggesties */}
             <div>
               <label className="pm-label">
                 Kies producten uit de suggestielijst
@@ -806,7 +832,6 @@ export default function VergelijkenPage() {
                   onFocus={() => {
                     setSuggestOpen(true);
 
-                    // ✅ prefill suggestions behind the scenes if field is empty
                     if (!suggestQuery.trim()) {
                       setSuggestFetchQuery(PREFILL_QUERY);
                     }
@@ -814,7 +839,6 @@ export default function VergelijkenPage() {
                   onBlur={() => {
                     setTimeout(() => setSuggestOpen(false), 120);
 
-                    // ✅ stop prefill when leaving field (only if user didn't type)
                     if (!suggestQuery.trim()) {
                       setSuggestFetchQuery("");
                       setSuggestions([]);
@@ -827,7 +851,7 @@ export default function VergelijkenPage() {
                       if (first) {
                         addSuggestionToList(first);
                         setSuggestQuery("");
-                        setSuggestFetchQuery(""); // reset
+                        setSuggestFetchQuery("");
                         setSuggestOpen(false);
                       }
                     }
@@ -855,7 +879,7 @@ export default function VergelijkenPage() {
                               onClick={() => {
                                 addSuggestionToList(opt);
                                 setSuggestQuery("");
-                                setSuggestFetchQuery(""); // reset
+                                setSuggestFetchQuery("");
                                 setSuggestOpen(false);
                               }}
                             >
@@ -897,7 +921,6 @@ export default function VergelijkenPage() {
               </div>
             </div>
 
-            {/* Geselecteerd */}
             <div>
               <div className="pm-label">
                 Geselecteerd (klik om te verwijderen)
@@ -957,7 +980,6 @@ export default function VergelijkenPage() {
               </div>
             </div>
 
-            {/* Boodschappenlijst */}
             <div>
               <label className="pm-label">
                 Boodschappenlijst (één product per regel)
@@ -985,7 +1007,6 @@ export default function VergelijkenPage() {
           />
         </div>
 
-        {/* ✅ PAYWALL KAART */}
         {paywall && (
           <div className="pm-card">
             <div className="space-y-3">
@@ -1044,7 +1065,6 @@ export default function VergelijkenPage() {
         </div>
       </div>
 
-      {/* RESULTATEN */}
       {data ? (
         <div className="space-y-6">
           <div className="grid gap-3 md:grid-cols-3">
@@ -1149,10 +1169,7 @@ export default function VergelijkenPage() {
               {selectedStores.map((store) => {
                 const items = cheapestByStore.buckets[store] || [];
                 const subtotal = cheapestByStore.subtotals[store] || 0;
-                const savings = Math.max(
-                  0,
-                  cheapestPerStoreHighestTotal - subtotal
-                );
+                const savings = cheapestByStoreSavings[store] || 0;
 
                 const byProduct = new Map<string, CompareMatchRow>();
                 data.matches.forEach((m) => byProduct.set(String(m.product), m));
@@ -1191,11 +1208,9 @@ export default function VergelijkenPage() {
                       Totaal: <span className="font-bold">{euro(subtotal)}</span>
                     </div>
 
-                    {savings > 0 ? (
-                      <div className="mt-2 text-sm font-medium text-emerald-700">
-                        Je bespaart {euro(savings)} t.o.v. de duurste
-                      </div>
-                    ) : null}
+                    <div className="mt-2 text-sm font-medium text-emerald-700">
+                      Je bespaart {euro(savings)} t.o.v. de duurste
+                    </div>
                   </ReceiptCard>
                 );
               })}
