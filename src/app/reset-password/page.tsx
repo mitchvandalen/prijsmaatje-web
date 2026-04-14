@@ -1,5 +1,5 @@
-import ResetPasswordClient from "./ResetPasswordClient";
+import ResetPasswordInner from "./ResetPasswordInner";
 
 export default function Page() {
-  return <ResetPasswordClient />;
+  return <ResetPasswordInner />;
 }

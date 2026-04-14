@@ -1,8 +1,13 @@
+import ForgotPasswordInner from "./ForgotPasswordInner";
+
+export default function Page() {
+  return <ForgotPasswordInner />;
+}
+
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.prijsmaatje.nl";
@@ -29,14 +34,8 @@ function errorToText(err: any): string {
   }
 }
 
-export default function ResetPasswordInner() {
-  const router = useRouter();
-  const sp = useSearchParams();
-
-  const token = useMemo(() => sp.get("token") || "", [sp]);
-
-  const [password, setPassword] = useState("");
-  const [passwordRepeat, setPasswordRepeat] = useState("");
+export default function ForgotPasswordInner() {
+  const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [successText, setSuccessText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,32 +44,18 @@ export default function ResetPasswordInner() {
     e.preventDefault();
     if (submitting) return;
 
+    setSubmitting(true);
     setError(null);
     setSuccessText(null);
 
-    if (!token) {
-      setError("Ongeldige resetlink.");
-      return;
-    }
-
-    if (password !== passwordRepeat) {
-      setError("De wachtwoorden zijn niet gelijk.");
-      return;
-    }
-
-    setSubmitting(true);
-
     try {
-      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          token,
-          password,
-        }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -79,11 +64,10 @@ export default function ResetPasswordInner() {
         throw data;
       }
 
-      setSuccessText(data?.message || "Je wachtwoord is succesvol gewijzigd.");
-
-      setTimeout(() => {
-        router.replace("/login");
-      }, 1500);
+      setSuccessText(
+        data?.message ||
+          "Als er een account bestaat voor dit e-mailadres, is er een resetlink verstuurd."
+      );
     } catch (err: any) {
       setError(errorToText(err));
     } finally {
@@ -94,9 +78,9 @@ export default function ResetPasswordInner() {
   return (
     <div className="pm-page">
       <div className="pm-header">
-        <div className="pm-title">Nieuw wachtwoord 🔐</div>
+        <div className="pm-title">Wachtwoord vergeten 🔑</div>
         <div className="pm-subtitle">
-          Stel een nieuw wachtwoord in voor je account.
+          Vul je e-mailadres in. Als er een account bestaat, sturen we een resetlink.
         </div>
       </div>
 
@@ -104,39 +88,23 @@ export default function ResetPasswordInner() {
 
       <div style={{ maxWidth: 520 }}>
         <div className="pm-card">
-          <div className="pm-h2">Wachtwoord resetten</div>
+          <div className="pm-h2">Resetlink aanvragen</div>
           <div className="pm-text" style={{ marginBottom: 12 }}>
-            Vul hieronder je nieuwe wachtwoord in.
+            We sturen je een link waarmee je een nieuw wachtwoord kunt instellen.
           </div>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
             <label style={{ display: "grid", gap: 6 }}>
               <span className="pm-text" style={{ fontWeight: 600 }}>
-                Nieuw wachtwoord
+                Email
               </span>
               <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 required
-                minLength={6}
-                placeholder="Nieuw wachtwoord"
-              />
-            </label>
-
-            <label style={{ display: "grid", gap: 6 }}>
-              <span className="pm-text" style={{ fontWeight: 600 }}>
-                Herhaal wachtwoord
-              </span>
-              <input
-                type="password"
-                value={passwordRepeat}
-                onChange={(e) => setPasswordRepeat(e.target.value)}
-                autoComplete="new-password"
-                required
-                minLength={6}
-                placeholder="Herhaal wachtwoord"
+                placeholder="jij@voorbeeld.nl"
               />
             </label>
 
@@ -173,17 +141,17 @@ export default function ResetPasswordInner() {
             )}
 
             <button className="pm-btn" disabled={submitting}>
-              {submitting ? "Bezig..." : "Opslaan"}
+              {submitting ? "Bezig..." : "Verstuur resetlink"}
             </button>
           </form>
 
           <div className="pm-caption" style={{ marginTop: 14 }}>
-            Terug naar{" "}
+            Weet je je wachtwoord toch weer?{" "}
             <Link
               href="/login"
               style={{ color: "var(--pm-indigo)", fontWeight: 700 }}
             >
-              inloggen
+              Terug naar inloggen
             </Link>
           </div>
         </div>
