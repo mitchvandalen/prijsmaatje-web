@@ -1,8 +1,21 @@
+import ResetPasswordInner from "./ResetPasswordInner";
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>;
+}) {
+  const params = await searchParams;
+  const token = params?.token || "";
+
+  return <ResetPasswordInner token={token} />;
+}
+
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.prijsmaatje.nl";
@@ -29,11 +42,8 @@ function errorToText(err: any): string {
   }
 }
 
-export default function ResetPasswordInner() {
+export default function ResetPasswordInner({ token }: { token: string }) {
   const router = useRouter();
-  const sp = useSearchParams();
-
-  const token = useMemo(() => sp.get("token") || "", [sp]);
 
   const [password, setPassword] = useState("");
   const [passwordRepeat, setPasswordRepeat] = useState("");

@@ -1,10 +1,12 @@
-import { Suspense } from "react";
 import ResetPasswordInner from "./ResetPasswordInner";
 
-export default function Page() {
-  return (
-    <Suspense fallback={<div>Laden...</div>}>
-      <ResetPasswordInner />
-    </Suspense>
-  );
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>;
+}) {
+  const params = await searchParams;
+  const token = params?.token || "";
+
+  return <ResetPasswordInner token={token} />;
 }
