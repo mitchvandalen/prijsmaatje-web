@@ -27,7 +27,9 @@ function itemsToText(items: any[]): string {
 
   for (const it of items ?? []) {
     if (it && typeof it === "object") {
-      const line = String(it.label || it.query || "").trim();
+      const line = String(
+        it.label || it.query || it.product_query || ""
+      ).trim();
       if (line) lines.push(line);
     } else if (it != null) {
       const line = String(it).trim();
@@ -63,20 +65,37 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ---------- types ----------
+type FixedListItem = {
+  id?: number | string;
+  product_query?: string;
+  quantity?: number | null;
+  note?: string | null;
+  meta?: any;
+  sort_order?: number;
+};
+
 type FixedList = {
   id: number | string;
   name?: string;
   created_at?: string;
-  items?: any[];
+  items?: FixedListItem[];
 };
 
 type HistoryItem = {
   id: number | string;
   name?: string;
   created_at?: string;
+  saved_amount?: number;
   payload?: {
+    name?: string;
     items?: any[];
     stores?: string[];
+  };
+  result?: {
+    totals?: Array<{
+      store: string;
+      total: number;
+    }>;
   };
 };
 
@@ -90,6 +109,7 @@ export default function GeschiedenisInner() {
 
   const [fixedLists, setFixedLists] = useState<FixedList[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [totalSaved, setTotalSaved] = useState(0);
 
   const [renameFixed, setRenameFixed] = useState<Record<string, string>>({});
   const [renameHist, setRenameHist] = useState<Record<string, string>>({});
@@ -115,12 +135,13 @@ export default function GeschiedenisInner() {
       const listsResp = await api<{ lists: FixedList[] }>(
         `/premium/lists?user_id=${encodeURIComponent(userId)}`
       );
-      const histResp = await api<{ history: HistoryItem[] }>(
+      const histResp = await api<{ history: HistoryItem[]; total_saved: number }>(
         `/premium/history?user_id=${encodeURIComponent(userId)}&limit=30`
       );
 
       setFixedLists(listsResp.lists ?? []);
       setHistory(histResp.history ?? []);
+      setTotalSaved(Number(histResp.total_saved ?? 0));
 
       const rf: Record<string, string> = {};
       for (const l of listsResp.lists ?? []) {
@@ -131,8 +152,9 @@ export default function GeschiedenisInner() {
       const rh: Record<string, string> = {};
       const sf: Record<string, string> = {};
       for (const h of histResp.history ?? []) {
-        rh[String(h.id)] = h.name ?? "Zonder naam";
-        sf[String(h.id)] = h.name ?? "Zonder naam";
+        const fallbackName = h.payload?.name ?? h.name ?? "Zonder naam";
+        rh[String(h.id)] = fallbackName;
+        sf[String(h.id)] = fallbackName;
       }
       setRenameHist(rh);
       setSaveAsFixedName(sf);
@@ -201,7 +223,7 @@ export default function GeschiedenisInner() {
     if (!userId || userId === "server") return;
 
     const name = (saveAsFixedName[histId] ?? "").trim() || "Vaste lijst";
-    await api(`/premium/save_list`, {
+    await api(`/premium/lists`, {
       method: "POST",
       body: JSON.stringify({ user_id: userId, name, items }),
     });
@@ -249,6 +271,13 @@ export default function GeschiedenisInner() {
 
             {!loading && !error && (
               <>
+                <section className="pm-card mb-6">
+                  <h2 className="pm-h2">💰 Totale besparing</h2>
+                  <p className="pm-caption">
+                    Tot nu toe heb je met vergelijken <strong>€{totalSaved.toFixed(2)}</strong> kunnen besparen.
+                  </p>
+                </section>
+
                 <section className="pm-card mb-6">
                   <h2 className="pm-h2">⭐ Vaste lijsten</h2>
 
@@ -312,10 +341,11 @@ export default function GeschiedenisInner() {
                     history.map((h) => {
                       const hid = String(h.id);
                       const ts = (h.created_at || "").replace("T", " ").slice(0, 19);
-                      const name = h.name || "Zonder naam";
+                      const name = h.payload?.name || h.name || "Zonder naam";
                       const payload = h.payload || {};
                       const items = payload.items || [];
                       const stores = payload.stores || [];
+                      const saved = Number(h.saved_amount ?? 0);
 
                       const text = itemsToText(items);
                       const count = text ? text.split("\n").filter(Boolean).length : 0;
@@ -327,6 +357,10 @@ export default function GeschiedenisInner() {
                           </summary>
 
                           <pre className="pm-code">{text || "—"}</pre>
+
+                          <div className="mt-3">
+                            <strong>Besparing bij deze vergelijking:</strong> €{saved.toFixed(2)}
+                          </div>
 
                           <div className="mt-3">
                             <label className="pm-label">Naam</label>
