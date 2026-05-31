@@ -34,8 +34,10 @@ type CompareResponse = {
   totals: { store: Store; total: number }[];
 };
 
+type ProductId = string | number;
+
 type Suggestion = {
-  product_id: number;
+  product_id: ProductId;
   label: string;
   store: Store;
   image_url?: string | null;
@@ -43,7 +45,7 @@ type Suggestion = {
 
 type CompareItem = {
   store: Store;
-  product_id?: number | null;
+  product_id?: ProductId | null;
   label?: string | null;
   query?: string | null;
   image_url?: string | null;
@@ -1103,12 +1105,6 @@ export default function VergelijkenPage() {
                 </div>
               );
             })}
-          </div>
-
-          <div className="text-xs text-slate-500">
-            PrijsMaatje matcht momenteel ongeveer 85–95% van de producten
-            automatisch. Soms kan een prijs ontbreken. We verbeteren dit
-            dagelijks.
           </div>
 
           <div className="rounded-lg border bg-white p-4 space-y-4">
