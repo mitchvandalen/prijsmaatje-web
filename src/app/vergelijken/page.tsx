@@ -827,6 +827,7 @@ export default function VergelijkenPage() {
                   type="text"
                   value={suggestQuery}
                   placeholder="Begin met typen..."
+                  className="text-base"
                   onChange={(e) => {
                     setSuggestQuery(e.target.value);
                     setSuggestOpen(true);
