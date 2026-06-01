@@ -2,8 +2,8 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="mt-16 border-t bg-white">
-      <div className="mx-auto max-w-6xl px-4 py-8 text-center text-sm text-slate-600">
+    <footer className="mt-16 border-t border-blue-100 bg-[#e7f0ff]">
+      <div className="mx-auto max-w-6xl px-4 py-8 text-center text-sm text-slate-700">
         <div className="font-semibold text-slate-800">
           PrijsMaatje
         </div>
