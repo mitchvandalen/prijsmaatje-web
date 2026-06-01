@@ -898,12 +898,14 @@ export default function VergelijkenPage() {
                                     <div className="h-8 w-8 rounded bg-slate-100" />
                                   )}
                                 </div>
-                                <div className="min-w-0">
-                                  <div className="truncate">{opt.label}</div>
-                                  <div className="text-xs text-slate-500">
-                                    ({opt.store})
-                                  </div>
+                                <div className="min-w-0 flex-1">
+                                <div className="line-clamp-2 leading-snug">
+                                  {opt.label}
                                 </div>
+                                <div className="mt-0.5 text-xs text-slate-500">
+                                  ({opt.store})
+                                </div>
+                              </div>
                               </div>
                             </button>
                           </li>
