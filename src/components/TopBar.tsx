@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 const mobileNav = [
   { href: "/", label: "Home" },
   { href: "/vergelijken", label: "🔎 Vergelijken" },
+  { href: "/match-suggestie", label: "🔧 Match voorstellen" },
   { href: "/premium", label: "💎 Premium" },
   { href: "/geschiedenis", label: "🕒 Geschiedenis" },
 ];
