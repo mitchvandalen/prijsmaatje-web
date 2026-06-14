@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type Store = "AH" | "Jumbo" | "Dirk";
-type TargetStore = "Jumbo" | "Dirk";
 
 type Product = {
   product_id: string | number;
@@ -15,6 +14,19 @@ type Product = {
   price?: number | null;
   brand?: string | null;
   unit_size?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  product_url?: string | null;
+  score?: number | null;
+  status?: string | null;
+  fallback_used?: boolean | null;
+};
+
+type CurrentMatchResponse = {
+  found: boolean;
+  ah?: Product | null;
+  jumbo?: Product | null;
+  dirk?: Product | null;
 };
 
 const API_BASE =
@@ -60,25 +72,40 @@ function productName(p: Product | null) {
   return p.name || p.label || "Onbekend product";
 }
 
+function productSearchText(p: Product | null) {
+  if (!p) return "";
+
+  const name = productName(p);
+  const unitSize = p.unit_size ? ` ${p.unit_size}` : "";
+
+  return `${name}${unitSize}`.trim();
+}
+
 function ProductCard({
   product,
   store,
   selected,
   onClick,
+  label,
 }: {
   product: Product;
   store?: Store;
   selected?: boolean;
   onClick?: () => void;
+  label?: string;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full rounded-lg border bg-white p-3 text-left transition hover:bg-slate-50 ${
+  const clickable = Boolean(onClick);
+
+  const inner = (
+    <div
+      className={`w-full rounded-lg border bg-white p-3 text-left transition ${
         selected ? "ring-2 ring-emerald-400" : ""
-      }`}
+      } ${clickable ? "hover:bg-slate-50" : ""}`}
     >
+      {label ? (
+        <div className="mb-2 text-xs font-medium text-slate-500">{label}</div>
+      ) : null}
+
       <div className="grid grid-cols-[48px_1fr_auto] items-center gap-3">
         <div className="h-12 w-12">
           {product.image_url ? (
@@ -102,13 +129,105 @@ function ProductCard({
             {store || product.store || "—"}
             {product.unit_size ? ` • ${product.unit_size}` : ""}
           </div>
+
+          {product.score != null || product.status ? (
+            <div className="mt-0.5 text-xs text-slate-400">
+              {product.status ? `Status: ${product.status}` : null}
+              {product.status && product.score != null ? " • " : null}
+              {product.score != null ? `Score: ${product.score}` : null}
+            </div>
+          ) : null}
         </div>
 
-        <div className="text-sm font-semibold">
-          {euro(product.price)}
-        </div>
+        <div className="text-sm font-semibold">{euro(product.price)}</div>
       </div>
+    </div>
+  );
+
+  if (!clickable) return inner;
+
+  return (
+    <button type="button" onClick={onClick} className="w-full">
+      {inner}
     </button>
+  );
+}
+
+function EmptyCard({ text }: { text: string }) {
+  return (
+    <div className="rounded-lg border bg-white p-4 text-sm text-slate-500">
+      {text}
+    </div>
+  );
+}
+
+function SearchBlock({
+  title,
+  store,
+  query,
+  setQuery,
+  loading,
+  onSearch,
+  results,
+  selected,
+  onSelect,
+  placeholder,
+}: {
+  title: string;
+  store: Store;
+  query: string;
+  setQuery: (value: string) => void;
+  loading: boolean;
+  onSearch: () => void;
+  results: Product[];
+  selected: Product | null;
+  onSelect: (product: Product) => void;
+  placeholder: string;
+}) {
+  return (
+    <section className="pm-card">
+      <h2 className="pm-h2">{title}</h2>
+
+      <div className="flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSearch();
+          }}
+          placeholder={placeholder}
+          className="text-base"
+          style={{ fontSize: "16px" }}
+        />
+
+        <button
+          type="button"
+          className="pm-btn"
+          onClick={onSearch}
+          disabled={loading}
+        >
+          {loading ? "Zoeken…" : "Zoek"}
+        </button>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {results.length ? (
+          results.map((p) => (
+            <ProductCard
+              key={`${store}-${p.product_id}`}
+              product={p}
+              store={store}
+              selected={selected?.product_id === p.product_id}
+              onClick={() => onSelect(p)}
+            />
+          ))
+        ) : (
+          <div className="text-sm text-slate-500">
+            Nog geen {store} producten gevonden.
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -120,14 +239,24 @@ export default function MatchSuggestiePage() {
   const [ahResults, setAhResults] = useState<Product[]>([]);
   const [selectedAh, setSelectedAh] = useState<Product | null>(null);
 
-  const [targetStore, setTargetStore] = useState<TargetStore>("Jumbo");
-  const [targetQuery, setTargetQuery] = useState("");
-  const [targetResults, setTargetResults] = useState<Product[]>([]);
-  const [selectedTarget, setSelectedTarget] = useState<Product | null>(null);
+  const [currentMatch, setCurrentMatch] = useState<CurrentMatchResponse | null>(
+    null
+  );
+  const [loadingCurrentMatch, setLoadingCurrentMatch] = useState(false);
+
+  const [jumboQuery, setJumboQuery] = useState("");
+  const [jumboResults, setJumboResults] = useState<Product[]>([]);
+  const [selectedJumbo, setSelectedJumbo] = useState<Product | null>(null);
+
+  const [dirkQuery, setDirkQuery] = useState("");
+  const [dirkResults, setDirkResults] = useState<Product[]>([]);
+  const [selectedDirk, setSelectedDirk] = useState<Product | null>(null);
 
   const [reason, setReason] = useState("");
+
   const [loadingAh, setLoadingAh] = useState(false);
-  const [loadingTarget, setLoadingTarget] = useState(false);
+  const [loadingJumbo, setLoadingJumbo] = useState(false);
+  const [loadingDirk, setLoadingDirk] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [error, setError] = useState("");
@@ -140,23 +269,34 @@ export default function MatchSuggestiePage() {
       .finally(() => setCheckingUser(false));
   }, []);
 
+  async function searchProducts(store: Store, query: string): Promise<Product[]> {
+    const q = query.trim();
+
+    if (q.length < 2) {
+      throw new Error("Typ minimaal 2 tekens om te zoeken.");
+    }
+
+    const rows = await api<Product[]>(
+      `/products/search?q=${encodeURIComponent(q)}&store=${encodeURIComponent(
+        store
+      )}&limit=30`
+    );
+
+    return Array.isArray(rows) ? rows : [];
+  }
+
   async function searchAh() {
     setError("");
     setSuccess("");
     setSelectedAh(null);
-
-    const q = ahQuery.trim();
-    if (q.length < 2) {
-      setError("Typ minimaal 2 tekens om te zoeken.");
-      return;
-    }
+    setCurrentMatch(null);
+    setSelectedJumbo(null);
+    setSelectedDirk(null);
 
     setLoadingAh(true);
     try {
-      const rows = await api<Product[]>(
-        `/products/search?q=${encodeURIComponent(q)}&store=AH&limit=30`
-      );
-      setAhResults(Array.isArray(rows) ? rows : []);
+      const rows = await searchProducts("AH", ahQuery);
+      setAhResults(rows);
     } catch (e: any) {
       setError(e?.message || "AH producten zoeken mislukt.");
       setAhResults([]);
@@ -165,31 +305,81 @@ export default function MatchSuggestiePage() {
     }
   }
 
-  async function searchTarget() {
+  async function searchJumbo() {
     setError("");
     setSuccess("");
-    setSelectedTarget(null);
+    setSelectedJumbo(null);
 
-    const q = targetQuery.trim();
-    if (q.length < 2) {
-      setError("Typ minimaal 2 tekens om te zoeken.");
+    setLoadingJumbo(true);
+    try {
+      const rows = await searchProducts("Jumbo", jumboQuery);
+      setJumboResults(rows);
+    } catch (e: any) {
+      setError(e?.message || "Jumbo producten zoeken mislukt.");
+      setJumboResults([]);
+    } finally {
+      setLoadingJumbo(false);
+    }
+  }
+
+  async function searchDirk() {
+    setError("");
+    setSuccess("");
+    setSelectedDirk(null);
+
+    setLoadingDirk(true);
+    try {
+      const rows = await searchProducts("Dirk", dirkQuery);
+      setDirkResults(rows);
+    } catch (e: any) {
+      setError(e?.message || "Dirk producten zoeken mislukt.");
+      setDirkResults([]);
+    } finally {
+      setLoadingDirk(false);
+    }
+  }
+
+  async function loadCurrentMatch(product: Product) {
+    const productId = product.product_id;
+
+    if (productId === null || productId === undefined || productId === "") {
+      setCurrentMatch(null);
       return;
     }
 
-    setLoadingTarget(true);
+    setLoadingCurrentMatch(true);
     try {
-      const rows = await api<Product[]>(
-        `/products/search?q=${encodeURIComponent(q)}&store=${encodeURIComponent(
-          targetStore
-        )}&limit=30`
+      const row = await api<CurrentMatchResponse>(
+        `/match-suggestions/current-match/${encodeURIComponent(
+          String(productId)
+        )}`
       );
-      setTargetResults(Array.isArray(rows) ? rows : []);
+
+      setCurrentMatch(row);
     } catch (e: any) {
-      setError(e?.message || `${targetStore} producten zoeken mislukt.`);
-      setTargetResults([]);
+      setCurrentMatch(null);
+      setError(e?.message || "Bestaande match ophalen mislukt.");
     } finally {
-      setLoadingTarget(false);
+      setLoadingCurrentMatch(false);
     }
+  }
+
+  function selectAhProduct(product: Product) {
+    setSelectedAh(product);
+    setSuccess("");
+    setError("");
+
+    const searchText = productSearchText(product) || ahQuery;
+
+    setJumboQuery(searchText);
+    setDirkQuery(searchText);
+
+    setJumboResults([]);
+    setDirkResults([]);
+    setSelectedJumbo(null);
+    setSelectedDirk(null);
+
+    loadCurrentMatch(product);
   }
 
   async function submitSuggestion() {
@@ -201,8 +391,8 @@ export default function MatchSuggestiePage() {
       return;
     }
 
-    if (!selectedTarget) {
-      setError(`Selecteer eerst een ${targetStore} product.`);
+    if (!selectedJumbo && !selectedDirk) {
+      setError("Selecteer minimaal een Jumbo of Dirk product.");
       return;
     }
 
@@ -213,8 +403,8 @@ export default function MatchSuggestiePage() {
         method: "POST",
         body: JSON.stringify({
           ah_product: selectedAh,
-          store: targetStore.toLowerCase(),
-          suggested_product: selectedTarget,
+          jumbo_product: selectedJumbo,
+          dirk_product: selectedDirk,
           reason: reason.trim() || null,
         }),
       });
@@ -223,9 +413,10 @@ export default function MatchSuggestiePage() {
         "Bedankt! Je matchsuggestie is opgeslagen en wordt later gecontroleerd."
       );
 
-      setSelectedTarget(null);
-      setTargetResults([]);
-      setTargetQuery("");
+      setSelectedJumbo(null);
+      setSelectedDirk(null);
+      setJumboResults([]);
+      setDirkResults([]);
       setReason("");
     } catch (e: any) {
       setError(e?.message || "Matchsuggestie opslaan mislukt.");
@@ -277,7 +468,7 @@ export default function MatchSuggestiePage() {
         <h1 className="pm-title">Match voorstellen 🔧</h1>
         <p className="pm-subtitle">
           Klopt een productmatch niet of ontbreekt er een match? Stel hier de
-          juiste match voor.
+          juiste Jumbo- en/of Dirk-match voor.
         </p>
       </div>
 
@@ -286,141 +477,141 @@ export default function MatchSuggestiePage() {
         match definitief wordt aangepast.
       </div>
 
+      <section className="pm-card">
+        <h2 className="pm-h2">1. Zoek AH product</h2>
+
+        <div className="flex gap-2">
+          <input
+            value={ahQuery}
+            onChange={(e) => setAhQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") searchAh();
+            }}
+            placeholder="Bijv. melk, kaas, cola..."
+            className="text-base"
+            style={{ fontSize: "16px" }}
+          />
+
+          <button
+            type="button"
+            className="pm-btn"
+            onClick={searchAh}
+            disabled={loadingAh}
+          >
+            {loadingAh ? "Zoeken…" : "Zoek"}
+          </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+          {ahResults.length ? (
+            ahResults.map((p) => (
+              <ProductCard
+                key={`ah-${p.product_id}`}
+                product={p}
+                store="AH"
+                selected={selectedAh?.product_id === p.product_id}
+                onClick={() => selectAhProduct(p)}
+              />
+            ))
+          ) : (
+            <div className="text-sm text-slate-500">
+              Nog geen AH producten gevonden.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="pm-card">
+        <h2 className="pm-h2">2. Huidige matches</h2>
+
+        {!selectedAh ? (
+          <EmptyCard text="Selecteer eerst een AH product om bestaande matches te bekijken." />
+        ) : loadingCurrentMatch ? (
+          <EmptyCard text="Bestaande matches laden…" />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <div className="pm-label">AH product</div>
+              <ProductCard product={selectedAh} store="AH" />
+            </div>
+
+            <div>
+              <div className="pm-label">Huidige Jumbo match</div>
+              {currentMatch?.jumbo ? (
+                <ProductCard product={currentMatch.jumbo} store="Jumbo" />
+              ) : (
+                <EmptyCard text="Geen huidige Jumbo match gevonden." />
+              )}
+            </div>
+
+            <div>
+              <div className="pm-label">Huidige Dirk match</div>
+              {currentMatch?.dirk ? (
+                <ProductCard product={currentMatch.dirk} store="Dirk" />
+              ) : (
+                <EmptyCard text="Geen huidige Dirk match gevonden." />
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="pm-card">
-          <h2 className="pm-h2">1. Zoek AH product</h2>
+        <SearchBlock
+          title="3. Zoek nieuwe Jumbo match"
+          store="Jumbo"
+          query={jumboQuery}
+          setQuery={setJumboQuery}
+          loading={loadingJumbo}
+          onSearch={searchJumbo}
+          results={jumboResults}
+          selected={selectedJumbo}
+          onSelect={setSelectedJumbo}
+          placeholder="Zoek product in Jumbo"
+        />
 
-          <div className="flex gap-2">
-            <input
-              value={ahQuery}
-              onChange={(e) => setAhQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") searchAh();
-              }}
-              placeholder="Bijv. melk, kaas, cola..."
-              className="text-base"
-              style={{ fontSize: "16px" }}
-            />
-
-            <button
-              type="button"
-              className="pm-btn"
-              onClick={searchAh}
-              disabled={loadingAh}
-            >
-              {loadingAh ? "Zoeken…" : "Zoek"}
-            </button>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {ahResults.length ? (
-              ahResults.map((p) => (
-                <ProductCard
-                  key={`ah-${p.product_id}`}
-                  product={p}
-                  store="AH"
-                  selected={selectedAh?.product_id === p.product_id}
-                  onClick={() => {
-                    setSelectedAh(p);
-                    if (!targetQuery.trim()) {
-                      setTargetQuery(productName(p));
-                    }
-                  }}
-                />
-              ))
-            ) : (
-              <div className="text-sm text-slate-500">
-                Nog geen AH producten gevonden.
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="pm-card">
-          <h2 className="pm-h2">2. Zoek juiste match</h2>
-
-          <div className="pm-checkRow mb-4">
-            {(["Jumbo", "Dirk"] as TargetStore[]).map((s) => (
-              <label key={s} className="pm-checkPill">
-                <input
-                  type="radio"
-                  checked={targetStore === s}
-                  onChange={() => {
-                    setTargetStore(s);
-                    setSelectedTarget(null);
-                    setTargetResults([]);
-                  }}
-                />
-                {s}
-              </label>
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              value={targetQuery}
-              onChange={(e) => setTargetQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") searchTarget();
-              }}
-              placeholder={`Zoek product in ${targetStore}`}
-              className="text-base"
-              style={{ fontSize: "16px" }}
-            />
-
-            <button
-              type="button"
-              className="pm-btn"
-              onClick={searchTarget}
-              disabled={loadingTarget}
-            >
-              {loadingTarget ? "Zoeken…" : "Zoek"}
-            </button>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {targetResults.length ? (
-              targetResults.map((p) => (
-                <ProductCard
-                  key={`${targetStore}-${p.product_id}`}
-                  product={p}
-                  store={targetStore}
-                  selected={selectedTarget?.product_id === p.product_id}
-                  onClick={() => setSelectedTarget(p)}
-                />
-              ))
-            ) : (
-              <div className="text-sm text-slate-500">
-                Nog geen {targetStore} producten gevonden.
-              </div>
-            )}
-          </div>
-        </section>
+        <SearchBlock
+          title="4. Zoek nieuwe Dirk match"
+          store="Dirk"
+          query={dirkQuery}
+          setQuery={setDirkQuery}
+          loading={loadingDirk}
+          onSearch={searchDirk}
+          results={dirkResults}
+          selected={selectedDirk}
+          onSelect={setSelectedDirk}
+          placeholder="Zoek product in Dirk"
+        />
       </div>
 
       <section className="pm-card">
-        <h2 className="pm-h2">3. Controleer en verstuur</h2>
+        <h2 className="pm-h2">5. Controleer en verstuur</h2>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <div className="pm-label">AH product</div>
             {selectedAh ? (
               <ProductCard product={selectedAh} store="AH" />
             ) : (
-              <div className="rounded-lg border bg-white p-4 text-sm text-slate-500">
-                Geen AH product geselecteerd.
-              </div>
+              <EmptyCard text="Geen AH product geselecteerd." />
             )}
           </div>
 
           <div>
-            <div className="pm-label">{targetStore} product</div>
-            {selectedTarget ? (
-              <ProductCard product={selectedTarget} store={targetStore} />
+            <div className="pm-label">Nieuwe Jumbo match</div>
+            {selectedJumbo ? (
+              <ProductCard product={selectedJumbo} store="Jumbo" />
             ) : (
-              <div className="rounded-lg border bg-white p-4 text-sm text-slate-500">
-                Geen {targetStore} product geselecteerd.
-              </div>
+              <EmptyCard text="Geen Jumbo product geselecteerd." />
+            )}
+          </div>
+
+          <div>
+            <div className="pm-label">Nieuwe Dirk match</div>
+            {selectedDirk ? (
+              <ProductCard product={selectedDirk} store="Dirk" />
+            ) : (
+              <EmptyCard text="Geen Dirk product geselecteerd." />
             )}
           </div>
         </div>
@@ -442,7 +633,7 @@ export default function MatchSuggestiePage() {
             disabled={submitting}
             onClick={submitSuggestion}
           >
-            {submitting ? "Versturen…" : "Match voorstellen"}
+            {submitting ? "Versturen…" : "Matchsuggestie opslaan"}
           </button>
         </div>
 
