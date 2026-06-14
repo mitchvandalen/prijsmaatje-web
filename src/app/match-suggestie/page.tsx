@@ -369,10 +369,8 @@ export default function MatchSuggestiePage() {
     setSuccess("");
     setError("");
 
-    const searchText = productSearchText(product) || ahQuery;
-
-    setJumboQuery(searchText);
-    setDirkQuery(searchText);
+    setJumboQuery(ahQuery);
+    setDirkQuery(ahQuery);
 
     setJumboResults([]);
     setDirkResults([]);
