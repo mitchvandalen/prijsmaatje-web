@@ -475,6 +475,10 @@ export default function MatchSuggestiePage() {
         match definitief wordt aangepast.
       </div>
 
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+  💡 <strong>Tip:</strong> Vind je een product niet? meestal zijn 1 of een paar woorden uit de productnaam genoeg, zo niet Gebruik de productnaam zoveel mogelijk zoals deze bij de betreffende supermarkt wordt vermeld. Je kunt de zoekopdracht per supermarkt afzonderlijk aanpassen.
+</div>
+
       <section className="pm-card">
         <h2 className="pm-h2">1. Zoek AH product</h2>
 
