@@ -1215,6 +1215,27 @@ export default function VergelijkenPage() {
                 );
               })}
             </div>
+                    </div>
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <h3 className="font-semibold text-blue-900">
+  Ontbreekt er een productmatch?
+</h3>
+
+<p className="mt-2 text-sm text-blue-800">
+  Niet iedere supermarkt verkoopt exact dezelfde producten. Daarnaast kan het voorkomen dat een passende Jumbo- of Dirk-match nog niet is gekoppeld.
+</p>
+
+<p className="mt-2 text-sm text-blue-800">
+  PrijsMaatje bevat inmiddels meer dan 12.000 productmatches en wordt voortdurend uitgebreid. Heb je een ontbrekende of betere match gevonden? Via de pagina Match voorstellen kun je eenvoudig zelf een match voorstellen. Na controle wordt deze toegevoegd aan de database.
+</p>
+
+            <Link
+              href="/match-suggestie"
+              className="mt-3 inline-block font-medium text-blue-700 hover:underline"
+            >
+              → Ga naar Match voorstellen
+            </Link>
           </div>
         </div>
       ) : null}
