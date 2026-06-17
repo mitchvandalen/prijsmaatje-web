@@ -256,6 +256,10 @@ export default function GeschiedenisInner() {
             <p className="pm-caption">
               Activeer Premium om je vergelijkingsgeschiedenis en vaste lijsten te bekijken.
             </p>
+            <p className="mt-3 text-sm text-slate-600">
+              7 dagen gratis proberen. Daarna slechts <strong>€1,49 per maand</strong>.
+              Maandelijks opzegbaar.
+           </p>
             <div className="mt-3">
               <button className="pm-btn" onClick={() => router.push("/premium")}>
                 Ga naar Premium
