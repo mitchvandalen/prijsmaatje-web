@@ -120,6 +120,18 @@ export default function PremiumInner() {
           <p className="pm-subtitle">Meer besparen, meer overzicht, geen limieten.</p>
         </div>
 
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center my-4">
+  <div className="text-lg font-bold">
+    7 dagen gratis proberen
+  </div>
+  <div className="text-slate-700">
+    Daarna slechts <strong>€1,49 per maand</strong>
+  </div>
+  <div className="text-sm text-slate-500 mt-1">
+    Maandelijks opzegbaar
+  </div>
+</div>
+
         <div className="pm-sep" />
 
         <div className="pm-card">
