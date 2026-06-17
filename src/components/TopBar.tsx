@@ -11,6 +11,7 @@ const mobileNav = [
   { href: "/match-suggestie", label: "🔧 Match voorstellen" },
   { href: "/premium", label: "💎 Premium" },
   { href: "/geschiedenis", label: "🕒 Geschiedenis" },
+  { href: "/account", label: "👤 Account" },
 ];
 
 export default function TopBar() {
