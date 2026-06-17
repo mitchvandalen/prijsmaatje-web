@@ -168,6 +168,7 @@ export default function HomePage() {
                 </li>
                 <li>
                   💎 Premium al vanaf <strong>€1,49 per maand</strong> na de gratis proefperiode van 7 dagen.
+                  Annuleer wanneer je wilt.
                 </li> 
               </ul>
 
@@ -211,6 +212,7 @@ export default function HomePage() {
             </li>
             <li>
               💎 Premium al vanaf <strong>€1,49 per maand</strong> na de gratis proefperiode van 7 dagen.
+              Annuleer wat je wilt. 
             </li>
           </ul>
 
