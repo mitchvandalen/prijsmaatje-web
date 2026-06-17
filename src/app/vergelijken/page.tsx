@@ -756,6 +756,8 @@ export default function VergelijkenPage() {
                 <span className="font-medium">aanpassen</span> en{" "}
                 <span className="font-medium">hergebruiken</span> — handig voor
                 weekboodschappen of vaste lijstjes.
+                7 dagen gratis proberen. Daarna slechts <strong>€1,49 per maand</strong>.
+                Onbeperkt vergelijken, vergelijkingen opslaan en later terugkijken.
               </div>
               <div className="mt-1 text-xs text-slate-500">
                 💡 Tip: geef je lijst een naam, dan vind je ’m sneller terug in
@@ -1024,6 +1026,8 @@ export default function VergelijkenPage() {
                 <li>Onbeperkt vergelijken</li>
                 <li>Vergelijkingen opslaan</li>
                 <li>Geschiedenis & vaste lijstjes gebruiken</li>
+                <li> 7 dagen gratis proberen. Daarna slechts <strong>€1,49 per maand</strong>.
+  Onbeperkt vergelijken, vergelijkingen opslaan en later terugkijken.</li>
               </ul>
 
               <div className="pm-ctaWrap">

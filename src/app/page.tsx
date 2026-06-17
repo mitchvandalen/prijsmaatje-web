@@ -163,6 +163,12 @@ export default function HomePage() {
                   Maak en beheer <strong>vaste lijsten</strong> (opslaan,
                   hernoemen, verwijderen, opnieuw gebruiken).
                 </li>
+                <li>
+                  Bewaar je <strong>vergelijkingsgeschiedenis</strong>.
+                </li>
+                <li>
+                  💎 Premium al vanaf <strong>€1,49 per maand</strong> na de gratis proefperiode van 7 dagen.
+                </li> 
               </ul>
 
               <h3 className="pm-h3">🕒 Geschiedenis (Premium)</h3>
@@ -202,6 +208,9 @@ export default function HomePage() {
             </li>
             <li>
               krijg je een <strong>persoonlijk bespaaroverzicht</strong>
+            </li>
+            <li>
+              💎 Premium al vanaf <strong>€1,49 per maand</strong> na de gratis proefperiode van 7 dagen.
             </li>
           </ul>
 
