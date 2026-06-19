@@ -71,10 +71,8 @@ export default function RegisterInner() {
     try {
       await register(email, password);
 
-      const next = safeNext();
-      router.replace(next || "/");
+      router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
-      // ✅ Altijd omzetten naar string zodat React nooit een object rendert
       setError(errorToText(err));
     } finally {
       setSubmitting(false);
@@ -98,7 +96,7 @@ export default function RegisterInner() {
         <div className="pm-card">
           <div className="pm-h2">Account aanmaken</div>
           <div className="pm-text" style={{ marginBottom: 12 }}>
-            Na registreren word je direct ingelogd en kun je meteen verder.
+            Na registreren ontvang je een verificatiecode per e-mail. Verifieer eerst je e-mailadres voordat je kunt inloggen.
           </div>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>

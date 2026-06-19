@@ -70,7 +70,12 @@ export default function LoginInner() {
       const next = safeNext();
       router.replace(next || "/");
     } catch (err: any) {
-      setError(errorToText(err));
+      const text = errorToText(err);
+      setError(text);
+
+      if (text.toLowerCase().includes("verifieer eerst")) {
+        router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
+      }
     } finally {
       setSubmitting(false);
     }
