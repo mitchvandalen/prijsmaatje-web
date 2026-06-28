@@ -4,13 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-type Store = "AH" | "Jumbo" | "Dirk";
+type Store = "AH" | "Jumbo" | "Dirk" | "Plus";
 
 type CompareMatchRow = {
   product: string;
   AH: number | null;
   Jumbo: number | null;
   Dirk: number | null;
+  Plus: number | null;
 
   AH_naam: string | null;
   AH_img: string | null;
@@ -20,6 +21,9 @@ type CompareMatchRow = {
 
   Dirk_naam: string | null;
   Dirk_img: string | null;
+
+  Plus_naam: string | null;
+  Plus_img: string | null;
 };
 
 type CheapestRow = {
@@ -181,6 +185,7 @@ export default function VergelijkenPage() {
     AH: true,
     Jumbo: true,
     Dirk: true,
+    Plus: true,
   });
 
   const [manualText, setManualText] = useState<string>("");
@@ -348,10 +353,11 @@ export default function VergelijkenPage() {
       AH: { found: 0, total },
       Jumbo: { found: 0, total },
       Dirk: { found: 0, total },
+      Plus: { found: 0, total },
     };
 
     (data?.matches || []).forEach((row) => {
-      (["AH", "Jumbo", "Dirk"] as Store[]).forEach((s) => {
+      (["AH", "Jumbo", "Dirk", "Plus",] as Store[]).forEach((s) => {
         if (safeNumber((row as any)[s]) != null) {
           result[s].found += 1;
         }
@@ -641,6 +647,7 @@ export default function VergelijkenPage() {
       AH: [],
       Jumbo: [],
       Dirk: [],
+      Plus: [],
     };
     const unpriced: string[] = [];
 
@@ -652,7 +659,7 @@ export default function VergelijkenPage() {
       buckets[row.store].push(row);
     }
 
-    const subtotals: Record<Store, number> = { AH: 0, Jumbo: 0, Dirk: 0 };
+    const subtotals: Record<Store, number> = { AH: 0, Jumbo: 0, Dirk: 0, Plus: 0 };
     (Object.keys(buckets) as Store[]).forEach((s) => {
       subtotals[s] = buckets[s].reduce(
         (acc, r) => acc + (safeNumber(r.price) ?? 0),
@@ -668,6 +675,7 @@ export default function VergelijkenPage() {
       AH: 0,
       Jumbo: 0,
       Dirk: 0,
+      Plus: 0,
     };
 
     const byProduct = new Map<string, CompareMatchRow>();
@@ -675,7 +683,7 @@ export default function VergelijkenPage() {
       byProduct.set(String(row.product), row);
     });
 
-    (["AH", "Jumbo", "Dirk"] as Store[]).forEach((store) => {
+    (["AH", "Jumbo", "Dirk", "Plus"] as Store[]).forEach((store) => {
       const items = cheapestByStore.buckets[store] || [];
 
       let subtotal = 0;
@@ -794,7 +802,7 @@ export default function VergelijkenPage() {
         <div>
           <h2 className="pm-h2">Kies winkels</h2>
           <div className="pm-checkRow">
-            {(["AH", "Jumbo", "Dirk"] as Store[]).map((s) => (
+            {(["AH", "Jumbo", "Dirk", "Plus"] as Store[]).map((s) => (
               <label key={s} className="pm-checkPill">
                 <input
                   type="checkbox"
@@ -814,7 +822,7 @@ export default function VergelijkenPage() {
 
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
             💡 Tip: Gebruik de suggestielijst voor de meest nauwkeurige
-            prijsvergelijking. Voor huismerken typ “AH”, “Jumbo” of “1 De
+            prijsvergelijking. Voor huismerken typ “AH”, “Jumbo”, “Plus” of “1 De
             Beste”.
           </div>
 
@@ -1227,7 +1235,7 @@ export default function VergelijkenPage() {
 </h3>
 
 <p className="mt-2 text-sm text-blue-800">
-  Niet iedere supermarkt verkoopt exact dezelfde producten. Daarnaast kan het voorkomen dat een passende Jumbo- of Dirk-match nog niet is gekoppeld.
+  Niet iedere supermarkt verkoopt exact dezelfde producten. Daarom kan het voorkomen dat een passen product nog niet is gekoppeld.
 </p>
 
 <p className="mt-2 text-sm text-blue-800">
