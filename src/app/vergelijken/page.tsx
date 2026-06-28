@@ -278,7 +278,16 @@ export default function VergelijkenPage() {
       const parsed = JSON.parse(raw);
       if (typeof parsed?.manualText === "string")
         setManualText(parsed.manualText);
-      if (parsed?.stores) setStores(parsed.stores);
+
+      if (parsed?.stores) {
+        setStores({
+          AH: parsed.stores.AH ?? true,
+          Jumbo: parsed.stores.Jumbo ?? true,
+          Dirk: parsed.stores.Dirk ?? true,
+          Plus: parsed.stores.Plus ?? true,
+        });
+      }
+
       if (typeof parsed?.listName === "string") setListName(parsed.listName);
       if (parsed?.selectionMap) setSelectionMap(parsed.selectionMap);
     } catch {}
