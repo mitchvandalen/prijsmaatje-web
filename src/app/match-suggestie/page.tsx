@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-type Store = "AH" | "Jumbo" | "Dirk";
+type Store = "AH" | "Jumbo" | "Dirk" | "Plus";
 
 type Product = {
   product_id: string | number;
@@ -27,6 +27,7 @@ type CurrentMatchResponse = {
   ah?: Product | null;
   jumbo?: Product | null;
   dirk?: Product | null;
+  plus?: Product | null;
 };
 
 const API_BASE =
@@ -252,11 +253,16 @@ export default function MatchSuggestiePage() {
   const [dirkResults, setDirkResults] = useState<Product[]>([]);
   const [selectedDirk, setSelectedDirk] = useState<Product | null>(null);
 
+  const [plusQuery, setPlusQuery] = useState("");
+  const [plusResults, setPlusResults] = useState<Product[]>([]);
+  const [selectedPlus, setSelectedPlus] = useState<Product | null>(null);
+
   const [reason, setReason] = useState("");
 
   const [loadingAh, setLoadingAh] = useState(false);
   const [loadingJumbo, setLoadingJumbo] = useState(false);
   const [loadingDirk, setLoadingDirk] = useState(false);
+  const [loadingPlus, setLoadingPlus] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [error, setError] = useState("");
@@ -292,6 +298,7 @@ export default function MatchSuggestiePage() {
     setCurrentMatch(null);
     setSelectedJumbo(null);
     setSelectedDirk(null);
+    setSelectedPlus(null);
 
     setLoadingAh(true);
     try {
@@ -339,6 +346,23 @@ export default function MatchSuggestiePage() {
     }
   }
 
+  async function searchPlus() {
+    setError("");
+    setSuccess("");
+    setSelectedPlus(null);
+
+    setLoadingPlus(true);
+    try {
+      const rows = await searchProducts("Plus", plusQuery);
+      setPlusResults(rows);
+    } catch (e: any) {
+      setError(e?.message || "Plus producten zoeken mislukt.");
+      setPlusResults([]);
+    } finally {
+      setLoadingPlus(false);
+    }
+  }
+
   async function loadCurrentMatch(product: Product) {
     const productId = product.product_id;
 
@@ -371,11 +395,14 @@ export default function MatchSuggestiePage() {
 
     setJumboQuery(ahQuery);
     setDirkQuery(ahQuery);
+    setPlusQuery(ahQuery);
 
     setJumboResults([]);
     setDirkResults([]);
+    setPlusResults([]);
     setSelectedJumbo(null);
     setSelectedDirk(null);
+    setSelectedPlus(null);
 
     loadCurrentMatch(product);
   }
@@ -389,8 +416,8 @@ export default function MatchSuggestiePage() {
       return;
     }
 
-    if (!selectedJumbo && !selectedDirk) {
-      setError("Selecteer minimaal een Jumbo of Dirk product.");
+    if (!selectedJumbo && !selectedDirk && !selectedPlus) {
+      setError("Selecteer minimaal een Jumbo, Dirk of Plus product.");
       return;
     }
 
@@ -403,6 +430,7 @@ export default function MatchSuggestiePage() {
           ah_product: selectedAh,
           jumbo_product: selectedJumbo,
           dirk_product: selectedDirk,
+          plus_product: selectedPlus,
           reason: reason.trim() || null,
         }),
       });
@@ -413,8 +441,10 @@ export default function MatchSuggestiePage() {
 
       setSelectedJumbo(null);
       setSelectedDirk(null);
+      setSelectedPlus(null);
       setJumboResults([]);
       setDirkResults([]);
+      setPlusResults([]);
       setReason("");
     } catch (e: any) {
       setError(e?.message || "Matchsuggestie opslaan mislukt.");
@@ -466,7 +496,7 @@ export default function MatchSuggestiePage() {
         <h1 className="pm-title">Match voorstellen 🔧</h1>
         <p className="pm-subtitle">
           Klopt een productmatch niet of ontbreekt er een match? Stel hier de
-          juiste Jumbo- en/of Dirk-match voor.
+          juiste match voor.
         </p>
       </div>
 
@@ -554,6 +584,15 @@ export default function MatchSuggestiePage() {
                 <EmptyCard text="Geen huidige Dirk match gevonden." />
               )}
             </div>
+
+            <div>
+              <div className="pm-label">Huidige Plus match</div>
+              {currentMatch?.plus ? (
+                <ProductCard product={currentMatch.plus} store="Plus" />
+              ) : (
+                <EmptyCard text="Geen huidige Plus match gevonden." />
+              )}
+            </div>
           </div>
         )}
       </section>
@@ -583,6 +622,19 @@ export default function MatchSuggestiePage() {
           selected={selectedDirk}
           onSelect={setSelectedDirk}
           placeholder="Zoek product in Dirk"
+        />
+
+        <SearchBlock
+          title="4. Zoek nieuwe Plus match"
+          store="Plus"
+          query={plusQuery}
+          setQuery={setPlusQuery}
+          loading={loadingPlus}
+          onSearch={searchDirk}
+          results={PlusResults}
+          selected={selectedPlus}
+          onSelect={setSelectedPlus}
+          placeholder="Zoek product in Plus"
         />
       </div>
 
@@ -614,6 +666,15 @@ export default function MatchSuggestiePage() {
               <ProductCard product={selectedDirk} store="Dirk" />
             ) : (
               <EmptyCard text="Geen Dirk product geselecteerd." />
+            )}
+          </div>
+
+          <div>
+            <div className="pm-label">Nieuwe Plus match</div>
+            {selectedPlus ? (
+              <ProductCard product={selectedPlus} store="Plus" />
+            ) : (
+              <EmptyCard text="Geen Plus product geselecteerd." />
             )}
           </div>
         </div>
