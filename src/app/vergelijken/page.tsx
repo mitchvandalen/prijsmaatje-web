@@ -198,7 +198,7 @@ function MissingMatchSearch({
   onSelect: (suggestion: Suggestion) => void;
   onApply: () => void;
 }) {
-  const [query, setQuery] = useState(initialQuery || "");
+  const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -206,7 +206,9 @@ function MissingMatchSearch({
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    setQuery(initialQuery || "");
+    setQuery("");
+    setOpen(false);
+    setResults([]);
   }, [initialQuery, store]);
 
   useEffect(() => {
@@ -252,8 +254,12 @@ function MissingMatchSearch({
 
   return (
     <div className="mt-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-2">
-      <div className="mb-1 text-xs font-medium text-slate-600">
-        Geen match gevonden bij {store}. Zoek zelf een passend product:
+      <div className="mb-2 text-xs font-medium text-slate-600">
+        <div>Geen match gevonden bij {store}.</div>
+        <div className="mt-1">
+          Zoek een passend product voor:
+          <div className="font-semibold text-slate-700">{initialQuery || "—"}</div>
+        </div>
       </div>
 
       {selected ? (
@@ -288,7 +294,7 @@ function MissingMatchSearch({
         <input
           type="text"
           value={query}
-          placeholder={`Zoek product bij ${store}`}
+          placeholder="Begin met typen..."
           className="text-sm"
           style={{ fontSize: "16px" }}
           onChange={(e) => {
@@ -315,7 +321,7 @@ function MissingMatchSearch({
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         onSelect(opt);
-                        setQuery(opt.label);
+                        setQuery("");
                         setOpen(false);
                       }}
                     >
