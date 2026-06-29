@@ -630,8 +630,8 @@ export default function MatchSuggestiePage() {
           query={plusQuery}
           setQuery={setPlusQuery}
           loading={loadingPlus}
-          onSearch={searchDirk}
-          results={PlusResults}
+          onSearch={searchPlus}
+          results={plusResults}
           selected={selectedPlus}
           onSelect={setSelectedPlus}
           placeholder="Zoek product in Plus"
