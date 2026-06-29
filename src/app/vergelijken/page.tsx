@@ -45,6 +45,15 @@ type Suggestion = {
   label: string;
   store: Store;
   image_url?: string | null;
+  price?: number | null;
+};
+
+type ManualMatchFix = {
+  store: Store;
+  product_id: ProductId;
+  label: string;
+  image_url?: string | null;
+  price: number | null;
 };
 
 type CompareItem = {
@@ -174,6 +183,170 @@ function LineItem({
   );
 }
 
+function MissingMatchSearch({
+  store,
+  initialQuery,
+  selected,
+  showApplyButton,
+  onSelect,
+  onApply,
+}: {
+  store: Store;
+  initialQuery: string;
+  selected?: ManualMatchFix | null;
+  showApplyButton?: boolean;
+  onSelect: (suggestion: Suggestion) => void;
+  onApply: () => void;
+}) {
+  const [query, setQuery] = useState(initialQuery || "");
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [results, setResults] = useState<Suggestion[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    setQuery(initialQuery || "");
+  }, [initialQuery, store]);
+
+  useEffect(() => {
+    const q = query.trim();
+    setError("");
+
+    if (!open || q.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
+    const t = setTimeout(() => {
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setLoading(true);
+
+      fetch(
+        `${API_BASE}/products/search?q=${encodeURIComponent(q)}&store=${encodeURIComponent(
+          store
+        )}&limit=10`,
+        { signal: controller.signal, credentials: "include" }
+      )
+        .then(async (r) => {
+          if (!r.ok) {
+            const text = await r.text().catch(() => "");
+            throw new Error(`${r.status} ${r.statusText}${text ? ` — ${text}` : ""}`);
+          }
+          return (await r.json()) as Suggestion[];
+        })
+        .then((rows) => setResults(Array.isArray(rows) ? rows : []))
+        .catch((e: any) => {
+          if (e?.name === "AbortError") return;
+          setResults([]);
+          setError(e?.message || "Zoeken mislukt.");
+        })
+        .finally(() => setLoading(false));
+    }, 250);
+
+    return () => clearTimeout(t);
+  }, [query, open, store]);
+
+  return (
+    <div className="mt-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-2">
+      <div className="mb-1 text-xs font-medium text-slate-600">
+        Geen match gevonden bij {store}. Zoek zelf een passend product:
+      </div>
+
+      {selected ? (
+        <div className="mb-2 flex items-center gap-2 rounded-md bg-white p-2">
+          <div className="h-8 w-8 shrink-0">
+            {selected.image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={selected.image_url} alt="" className="h-8 w-8 rounded object-cover" />
+            ) : (
+              <div className="h-8 w-8 rounded bg-slate-100" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1 text-sm">
+            <div className="line-clamp-2">{selected.label}</div>
+            <div className="text-xs text-slate-500">
+              {selected.price != null ? euro(selected.price) : "Prijs wordt opgehaald bij opnieuw vergelijken"}
+            </div>
+          </div>
+          {showApplyButton ? (
+            <button
+              type="button"
+              className="rounded-md border bg-white px-2 py-1 text-xs font-medium hover:bg-slate-50"
+              onClick={onApply}
+            >
+              Vergelijk opnieuw
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          placeholder={`Zoek product bij ${store}`}
+          className="text-sm"
+          style={{ fontSize: "16px" }}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
+        />
+
+        {open ? (
+          <div className="absolute z-30 mt-1 w-full rounded-lg border bg-white p-1 shadow">
+            {loading ? (
+              <div className="px-3 py-2 text-sm text-slate-500">Zoeken…</div>
+            ) : error ? (
+              <div className="px-3 py-2 text-sm text-red-700">{error}</div>
+            ) : results.length ? (
+              <ul className="max-h-56 overflow-auto">
+                {results.map((opt) => (
+                  <li key={`${store}-${opt.product_id}`}>
+                    <button
+                      type="button"
+                      className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-50"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onSelect(opt);
+                        setQuery(opt.label);
+                        setOpen(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 shrink-0">
+                          {opt.image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={opt.image_url} alt="" className="h-8 w-8 rounded object-cover" />
+                          ) : (
+                            <div className="h-8 w-8 rounded bg-slate-100" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="line-clamp-2 leading-snug">{opt.label}</div>
+                          <div className="mt-0.5 text-xs text-slate-500">({store})</div>
+                        </div>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="px-3 py-2 text-sm text-slate-500">Geen resultaten</div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function VergelijkenPage() {
   const router = useRouter();
 
@@ -209,6 +382,8 @@ export default function VergelijkenPage() {
 
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<CompareResponse | null>(null);
+  const [manualMatchFixes, setManualMatchFixes] = useState<Record<string, ManualMatchFix>>({});
+  const [lastManualFixKey, setLastManualFixKey] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
 
   // ✅ Paywall state
@@ -346,17 +521,121 @@ export default function VergelijkenPage() {
     [stores]
   );
 
+  function manualFixKey(rowIndex: number, store: Store) {
+    return `${rowIndex}__${store}`;
+  }
+
+  function applyManualFixesToData(
+    source: CompareResponse | null,
+    fixes: Record<string, ManualMatchFix>
+  ): CompareResponse | null {
+    if (!source) return null;
+
+    const matches = source.matches.map((row, idx) => {
+      const next: CompareMatchRow = { ...row };
+
+      (Object.keys(stores) as Store[]).forEach((store) => {
+        const fix = fixes[manualFixKey(idx, store)];
+        if (!fix) return;
+
+        (next as any)[store] = fix.price;
+        (next as any)[`${store}_naam`] = fix.label;
+        (next as any)[`${store}_img`] = fix.image_url ?? null;
+      });
+
+      return next;
+    });
+
+    const totals = selectedStores.map((store) => {
+      const total = matches.reduce((acc, row) => acc + (safeNumber((row as any)[store]) ?? 0), 0);
+      return { store, total: Math.round(total * 100) / 100 };
+    });
+
+    const cheapest_per_product = matches.map((row) => {
+      const avail = selectedStores
+        .map((store) => ({ store, price: safeNumber((row as any)[store]) }))
+        .filter((x): x is { store: Store; price: number } => x.price != null);
+
+      if (!avail.length) {
+        return { product: row.product, store: null, price: null };
+      }
+
+      const best = avail.reduce((a, b) => (b.price < a.price ? b : a));
+      return { product: row.product, store: best.store, price: best.price };
+    });
+
+    return { matches, totals, cheapest_per_product };
+  }
+
+  const displayData = useMemo(
+    () => applyManualFixesToData(data, manualMatchFixes),
+    [data, manualMatchFixes, selectedStores, stores]
+  );
+
+  async function handleManualFixSelect(rowIndex: number, store: Store, suggestion: Suggestion) {
+    const key = manualFixKey(rowIndex, store);
+    let price = safeNumber(suggestion.price);
+    let label = suggestion.label;
+    let imageUrl = suggestion.image_url ?? null;
+
+    // /products/search geeft soms alleen label/image terug. Haal dan de directe winkelprijs op via /compare.
+    if (price == null) {
+      try {
+        const res = await api<CompareResponse>("/compare", {
+          method: "POST",
+          body: JSON.stringify({
+            stores: [store],
+            items: [
+              {
+                store,
+                product_id: suggestion.product_id,
+                label: suggestion.label,
+                query: suggestion.label,
+              },
+            ],
+          }),
+        });
+
+        const first = res.matches?.[0] as any;
+        price = safeNumber(first?.[store]);
+        label = first?.[`${store}_naam`] || suggestion.label;
+        imageUrl = first?.[`${store}_img`] || imageUrl;
+      } catch (e: any) {
+        setError(e?.message || "Kon de prijs van het gekozen product niet ophalen.");
+      }
+    }
+
+    setManualMatchFixes((prev) => ({
+      ...prev,
+      [key]: {
+        store,
+        product_id: suggestion.product_id,
+        label,
+        image_url: imageUrl,
+        price,
+      },
+    }));
+    setLastManualFixKey(key);
+  }
+
+  function applyManualFixes() {
+    const next = applyManualFixesToData(data, manualMatchFixes);
+    if (next) setData(next);
+    setManualMatchFixes({});
+    setLastManualFixKey(null);
+  }
+
   const totalsMap = useMemo(() => {
     const m = new Map<Store, number>();
-    (data?.totals || []).forEach((t) => m.set(t.store, Number(t.total || 0)));
+    (displayData?.totals || []).forEach((t) => m.set(t.store, Number(t.total || 0)));
     selectedStores.forEach((s) => {
       if (!m.has(s)) m.set(s, 0);
     });
     return m;
-  }, [data, selectedStores]);
+  }, [displayData, selectedStores]);
 
   const storeCompleteness = useMemo(() => {
-    const total = data?.matches?.length || 0;
+    const total = displayData?.matches?.length || 0;
 
     const result: Record<Store, { found: number; total: number }> = {
       AH: { found: 0, total },
@@ -365,7 +644,7 @@ export default function VergelijkenPage() {
       Plus: { found: 0, total },
     };
 
-    (data?.matches || []).forEach((row) => {
+    (displayData?.matches || []).forEach((row) => {
       (["AH", "Jumbo", "Dirk", "Plus",] as Store[]).forEach((s) => {
         if (safeNumber((row as any)[s]) != null) {
           result[s].found += 1;
@@ -374,7 +653,7 @@ export default function VergelijkenPage() {
     });
 
     return result;
-  }, [data]);
+  }, [displayData]);
 
   const cheapestStoreTotal = useMemo(() => {
     if (!selectedStores.length) return null;
@@ -596,6 +875,8 @@ export default function VergelijkenPage() {
     setError("");
     setPaywall(null);
     setData(null);
+    setManualMatchFixes({});
+    setLastManualFixKey(null);
     setSaveStatus("idle");
 
     if (!manualList.length) {
@@ -660,7 +941,7 @@ export default function VergelijkenPage() {
     };
     const unpriced: string[] = [];
 
-    for (const row of data?.cheapest_per_product || []) {
+    for (const row of displayData?.cheapest_per_product || []) {
       if (!row?.store) {
         unpriced.push(row?.product || "—");
         continue;
@@ -677,7 +958,7 @@ export default function VergelijkenPage() {
     });
 
     return { buckets, subtotals, unpriced };
-  }, [data]);
+  }, [displayData]);
 
   const cheapestByStoreSavings = useMemo(() => {
     const result: Record<Store, number> = {
@@ -688,7 +969,7 @@ export default function VergelijkenPage() {
     };
 
     const byProduct = new Map<string, CompareMatchRow>();
-    (data?.matches || []).forEach((row) => {
+    (displayData?.matches || []).forEach((row) => {
       byProduct.set(String(row.product), row);
     });
 
@@ -720,7 +1001,7 @@ export default function VergelijkenPage() {
     });
 
     return result;
-  }, [data, cheapestByStore, selectedStores]);
+  }, [displayData, cheapestByStore, selectedStores]);
 
   return (
     <div className="space-y-8">
@@ -745,7 +1026,7 @@ export default function VergelijkenPage() {
                 .
               </div>
 
-              {data ? (
+              {displayData ? (
                 <div className="mt-1 text-xs text-slate-500">
                   {saveStatus === "saving" ? "Opslaan…" : null}
                   {saveStatus === "saved" ? "✅ Opgeslagen" : null}
@@ -1092,7 +1373,7 @@ export default function VergelijkenPage() {
         </div>
       </div>
 
-      {data ? (
+      {displayData ? (
         <div className="space-y-6">
           <div className="grid gap-3 md:grid-cols-3">
             {selectedStores.map((s) => {
@@ -1161,18 +1442,35 @@ export default function VergelijkenPage() {
                   subtitle={`${storeCompleteness[store].found} / ${storeCompleteness[store].total} gevonden • — = Niet gevonden`}
                 >
                   <div className="space-y-1">
-                    {data.matches.map((row, idx) => {
+                    {displayData.matches.map((row, idx) => {
                       const price = safeNumber((row as any)?.[store]);
                       const name =
                         (row as any)?.[`${store}_naam`] || row.product || "—";
                       const img = (row as any)?.[`${store}_img`];
+                      const key = manualFixKey(idx, store);
+                      const manualFix = manualMatchFixes[key] || null;
+
                       return (
-                        <LineItem
-                          key={idx}
-                          img={img}
-                          name={String(name)}
-                          price={price}
-                        />
+                        <div key={idx}>
+                          <LineItem
+                            img={img}
+                            name={String(name)}
+                            price={price}
+                          />
+
+                          {price == null ? (
+                            <MissingMatchSearch
+                              store={store}
+                              initialQuery={String(row.product || name || "")}
+                              selected={manualFix}
+                              showApplyButton={lastManualFixKey === key}
+                              onSelect={(suggestion) =>
+                                handleManualFixSelect(idx, store, suggestion)
+                              }
+                              onApply={applyManualFixes}
+                            />
+                          ) : null}
+                        </div>
                       );
                     })}
                   </div>
@@ -1193,7 +1491,7 @@ export default function VergelijkenPage() {
                 const savings = cheapestByStoreSavings[store] || 0;
 
                 const byProduct = new Map<string, CompareMatchRow>();
-                data.matches.forEach((m) => byProduct.set(String(m.product), m));
+                displayData.matches.forEach((m) => byProduct.set(String(m.product), m));
 
                 return (
                   <ReceiptCard
